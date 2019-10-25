@@ -1,0 +1,154 @@
+---
+title: "multiclass_classification"
+author: "Ilya"
+date: "10/25/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##based on code here: https://rpubs.com/mharris/multiclass_xgboost
+
+#####install packages
+```{r packages, echo=FALSE}
+pkgTest <- function(x)
+{
+  if (x %in% rownames(installed.packages()) == FALSE) {
+    install.packages(x, dependencies= TRUE)    
+  }
+  library(x, character.only = TRUE)
+}
+neededPackages <- c("xgboost", #the main algorithm 
+                    "archdata",   #for the sample dataset #
+                    "caret", #for the confusionmatrix() function (also needs e1071 package)
+                    "dplyr",# for some data preparation
+                    "Ckmeans.1d.dp")# for xgb.ggplot.importance
+
+for (package in neededPackages){pkgTest(package)}
+
+```
+
+
+Here is where we:
+
+Load the RBGlass1 dataset
+convert the variable Site from a factor to numeric
+Simulate a third class (furnace) from the data
+Bind the new class to the original data
+Subtract 1 from the Site names so they start at 0
+Print out a summary()
+The XGBoost algorithm requires that the class labels (Site names) start at 0 and increase sequentially to the maximum number of classes. This is a bit of an inconvenience as you need to keep track of what Site name goes with which label. Also, you need to be very careful when you add or remove a 1 to go from the zero based labels to the 1 based labels.
+
+The simulated class is created by taking the data from Site == 1, creating an offset ./10 and adding that back to the same value with some random normal noise rnorm(1,.,.*0.1) proportional to the value. You can pretty much ignore this.
+
+```{r}
+# set random seed
+set.seed(717)
+data(RBGlass1)
+dat <- RBGlass1 
+dat$Site <- as.numeric(dat$Site)
+dat_add <- dat[which(dat$Site == 1),] %>%
+  rowwise() %>%
+  mutate_each(funs(./10 + rnorm(1,.,.*0.1))) %>%
+  mutate_each(funs(round(.,2))) %>%
+  mutate(Site = 3)
+```
+
+```{r}
+dat <- rbind(dat, dat_add) %>%
+  mutate(Site = Site - 1)
+
+summary(dat)
+```
+
+####train and test split
+
+```{r}
+# Make split index
+train_index <- sample(1:nrow(dat), nrow(dat)*0.75)
+# Full data set
+data_variables <- as.matrix(dat[,-1])
+data_label <- dat[,"Site"]
+data_matrix <- xgb.DMatrix(data = as.matrix(dat), label = data_label)
+# split train data and make xgb.DMatrix
+train_data   <- data_variables[train_index,]
+train_label  <- data_label[train_index]
+train_matrix <- xgb.DMatrix(data = train_data, label = train_label)
+# split test data and make xgb.DMatrix
+test_data  <- data_variables[-train_index,]
+test_label <- data_label[-train_index]
+test_matrix <- xgb.DMatrix(data = test_data, label = test_label)
+```
+
+
+####K-folds Cross-validation to Estimate Error
+set the objective to multi:softprob and the eval_metric to mlogloss. These two parameters tell the XGBoost algorithm that we want to to probabilistic classification and use a multiclass logloss as our evaluation metric. Use of the multi:softprob objective also requires that we tell is the number of classes we have with num_class
+```{r}
+numberOfClasses <- length(unique(dat$Site))
+xgb_params <- list("objective" = "multi:softprob",
+                   "eval_metric" = "mlogloss",
+                   "num_class" = numberOfClasses)
+nround    <- 50 # number of XGBoost rounds
+cv.nfold  <- 5
+
+# Fit cv.nfold * cv.nround XGB models and save OOF predictions
+cv_model <- xgb.cv(params = xgb_params,
+                   data = train_matrix, 
+                   nrounds = nround,
+                   nfold = cv.nfold,
+                   verbose = FALSE,
+                   prediction = TRUE)
+```
+
+
+####Assess Out-of-Fold Prediction Error
+```{r}
+OOF_prediction <- data.frame(cv_model$pred) %>%
+  mutate(max_prob = max.col(., ties.method = "last"),
+         label = train_label + 1)
+head(OOF_prediction)
+```
+
+#### confusion matrix
+```{r}
+# confusion matrix
+confusionMatrix(factor(OOF_prediction$max_prob),
+                factor(OOF_prediction$label),
+                mode = "everything")
+```
+
+###Train Full Model and Assess Test Set Error
+```{r}
+bst_model <- xgb.train(params = xgb_params,
+                       data = train_matrix,
+                       nrounds = nround)
+
+# Predict hold-out test set
+test_pred <- predict(bst_model, newdata = test_matrix)
+test_prediction <- matrix(test_pred, nrow = numberOfClasses,
+                          ncol=length(test_pred)/numberOfClasses) %>%
+  t() %>%
+  data.frame() %>%
+  mutate(label = test_label + 1,
+         max_prob = max.col(., "last"))
+# confusion matrix of test set
+confusionMatrix(factor(test_prediction$max_prob),
+                factor(test_prediction$label),
+                mode = "everything")
+```
+
+###Variable Importance
+```{r}
+# get the feature real names
+names <-  colnames(dat[,-1])
+# compute feature importance matrix
+importance_matrix = xgb.importance(feature_names = names, model = bst_model)
+head(importance_matrix)
+
+# plot
+gp = xgb.ggplot.importance(importance_matrix)
+print(gp) 
+```
+
