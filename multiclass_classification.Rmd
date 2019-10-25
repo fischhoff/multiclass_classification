@@ -2,7 +2,7 @@
 title: "multiclass_classification"
 author: "Ilya"
 date: "10/25/2019"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
