@@ -151,4 +151,141 @@ head(importance_matrix)
 gp = xgb.ggplot.importance(importance_matrix)
 print(gp) 
 ```
+###load and merge the 1) rodent trait data and 2) rodent - disease data 3) disease -- tx mode data
+```{r}
+traits = read.csv("dfPanRodent_imputed.csv")
+names(traits)
+traits$Pan = paste(traits$MSW05_Genus,
+                   traits$MSW05_Species,
+                   sep = "_")
 
+#host - rodent-disease pairs from GIDEON.csv
+dx_host = read.csv("host - rodent-disease pairs from GIDEON.csv")
+
+dx_host_traits = merge(traits, dx_host)
+
+#host - rodent-disease transmission modes_20190413.csv
+modes = read.csv("host - rodent-disease transmission modes_20190413.csv")
+names(modes)[names(modes)=="Zoonoses.with.rodent.reservoirs"]="Matches"
+modes = modes[,c("Matches",
+                 "transmission.mode.to.humans.simplified")]
+dx_modes_host_traits = merge(dx_host_traits,
+                             modes, by = "Matches")
+
+#remove fields no longer needed
+rm = c("Matches", "Pan", "X",
+       "MSW05_Order", "MSW05_Family","MSW05_Genus",                           
+ "MSW05_Species","MSW05_Binomial","Flag" )
+keep = setdiff(names(dx_modes_host_traits),rm)
+dat = dx_modes_host_traits[,keep]
+```
+
+##change classes from 0 to n-1-- rodents
+```{r}
+
+dat$transmission.mode.to.humans.simplified.numeric = as.numeric(factor(dat$transmission.mode.to.humans.simplified))
+#direct: 1
+#environmental: 2
+#vector: 3
+rm = c("transmission.mode.to.humans.simplified")
+keep = setdiff(names(dat), rm)
+dat = dat[,keep]
+dat <- dat %>%
+  mutate(transmission.mode.to.humans.simplified.numeric =  transmission.mode.to.humans.simplified.numeric- 1)
+
+summary(dat)
+#direct: 0
+#environmental: 1
+#vector: 2
+
+
+```
+
+
+####train and test split-- rodents
+
+```{r}
+# Make split index
+train_index <- sample(1:nrow(dat), nrow(dat)*0.7)
+# Full data set
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+data_variables <- as.matrix(dat[,-label_col])
+data_label <- dat[,"transmission.mode.to.humans.simplified.numeric"]
+data_matrix <- xgb.DMatrix(data = as.matrix(dat), label = data_label)
+# split train data and make xgb.DMatrix
+train_data   <- data_variables[train_index,]
+train_label  <- data_label[train_index]
+train_matrix <- xgb.DMatrix(data = train_data, label = train_label)
+# split test data and make xgb.DMatrix
+test_data  <- data_variables[-train_index,]
+test_label <- data_label[-train_index]
+test_matrix <- xgb.DMatrix(data = test_data, label = test_label)
+```
+
+
+####K-folds Cross-validation to Estimate Error-- rodents
+set the objective to multi:softprob and the eval_metric to mlogloss. These two parameters tell the XGBoost algorithm that we want to to probabilistic classification and use a multiclass logloss as our evaluation metric. Use of the multi:softprob objective also requires that we tell is the number of classes we have with num_class
+```{r}
+numberOfClasses <- length(unique(dat$transmission.mode.to.humans.simplified.numeric))
+xgb_params <- list("objective" = "multi:softprob",
+                   "eval_metric" = "mlogloss",
+                   "num_class" = numberOfClasses)
+nround    <- 50 # number of XGBoost rounds
+cv.nfold  <- 5
+
+# Fit cv.nfold * cv.nround XGB models and save OOF predictions
+cv_model <- xgb.cv(params = xgb_params,
+                   data = train_matrix, 
+                   nrounds = nround,
+                   nfold = cv.nfold,
+                   verbose = FALSE,
+                   prediction = TRUE)
+```
+
+
+####Assess Out-of-Fold Prediction Error-- rodents
+```{r}
+OOF_prediction <- data.frame(cv_model$pred) %>%
+  mutate(max_prob = max.col(., ties.method = "last"),
+         label = train_label + 1)
+head(OOF_prediction)
+```
+#### confusion matrix-- rodents
+```{r}
+# confusion matrix
+confusionMatrix(factor(OOF_prediction$max_prob),
+                factor(OOF_prediction$label),
+                mode = "everything")
+```
+###Train Full Model and Assess Test Set Error-- rodents
+```{r}
+bst_model <- xgb.train(params = xgb_params,
+                       data = train_matrix,
+                       nrounds = nround)
+
+# Predict hold-out test set
+test_pred <- predict(bst_model, newdata = test_matrix)
+test_prediction <- matrix(test_pred, nrow = numberOfClasses,
+                          ncol=length(test_pred)/numberOfClasses) %>%
+  t() %>%
+  data.frame() %>%
+  mutate(label = test_label + 1,
+         max_prob = max.col(., "last"))
+# confusion matrix of test set
+confusionMatrix(factor(test_prediction$max_prob),
+                factor(test_prediction$label),
+                mode = "everything")
+```
+###Variable Importance-- rodents
+```{r var_imp}
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+names <-  colnames(dat[,-label_col])
+# compute feature importance matrix
+importance_matrix = xgb.importance(feature_names = names, model = bst_model)
+head(importance_matrix)
+
+# plot
+gp = xgb.ggplot.importance(importance_matrix)
+print(gp) 
+```
