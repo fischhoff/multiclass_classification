@@ -24,7 +24,8 @@ neededPackages <- c("xgboost", #the main algorithm
                     "archdata",   #for the sample dataset #
                     "caret", #for the confusionmatrix() function (also needs e1071 package)
                     "dplyr",# for some data preparation
-                    "Ckmeans.1d.dp")# for xgb.ggplot.importance
+                    "Ckmeans.1d.dp",# for xgb.ggplot.importance
+                    "stringr")#str_replace
 
 for (package in neededPackages){pkgTest(package)}
 
@@ -151,7 +152,7 @@ head(importance_matrix)
 gp = xgb.ggplot.importance(importance_matrix)
 print(gp) 
 ```
-###load and merge the 1) rodent trait data and 2) rodent - disease data 3) disease -- tx mode data
+###load and merge the 1) rodent trait data and 2) rodent - disease data 3) disease -- tx mode data 4) climate data
 ```{r}
 traits = read.csv("dfPanRodent_imputed.csv")
 names(traits)
@@ -172,12 +173,24 @@ modes = modes[,c("Matches",
 dx_modes_host_traits = merge(dx_host_traits,
                              modes, by = "Matches")
 
+dx_modes_host_traits$Pan = str_replace(string = dx_modes_host_traits$Pan,pattern = "_",
+            replacement = " ")
+
+load("climate_envelope.rdata")
+
+#these are the same length
+length(intersect(xclim_all$binomial,dx_modes_host_traits$Pan))
+
+length(intersect(xclim_all$IUCN_binom,dx_modes_host_traits$Pan))
+names(xclim_all)[names(xclim_all)=="binomial"]="Pan"
+
+dx_modes_host_traits_climate = merge(dx_modes_host_traits,xclim_all)
 #remove fields no longer needed
 rm = c("Matches", "Pan", "X",
        "MSW05_Order", "MSW05_Family","MSW05_Genus",                           
- "MSW05_Species","MSW05_Binomial","Flag" )
-keep = setdiff(names(dx_modes_host_traits),rm)
-dat = dx_modes_host_traits[,keep]
+ "MSW05_Species","MSW05_Binomial","Flag" , "IUCN_binom")
+keep = setdiff(names(dx_modes_host_traits_climate),rm)
+dat = dx_modes_host_traits_climate[,keep]
 ```
 
 ##change classes from 0 to n-1-- rodents
@@ -286,6 +299,6 @@ importance_matrix = xgb.importance(feature_names = names, model = bst_model)
 head(importance_matrix)
 
 # plot
-gp = xgb.ggplot.importance(importance_matrix)
+gp = xgb.ggplot.importance(importance_matrix, top_n = 20)
 print(gp) 
 ```
