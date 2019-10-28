@@ -26,6 +26,21 @@ Ilya
     ## 
     ##     intersect, setdiff, setequal, union
 
+    ## randomForest 4.6-14
+
+    ## Type rfNews() to see new features/changes/bug fixes.
+
+    ## 
+    ## Attaching package: 'randomForest'
+
+    ## The following object is masked from 'package:dplyr':
+    ## 
+    ##     combine
+
+    ## The following object is masked from 'package:ggplot2':
+    ## 
+    ##     margin
+
 Here is where we:
 
 Load the RBGlass1 dataset convert the variable Site from a factor to
@@ -773,3 +788,70 @@ print(gp)
 ```
 
 ![](multiclass_classification_files/figure-gfm/var_imp-1.png)<!-- -->
+
+\#\#\#randomForest
+
+``` r
+#dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
+
+#remove rows which have empty values
+row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
+predictors_no_NA <- dat[!row.has.na, ]
+dat = predictors_no_NA
+dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+names <-  colnames(dat[,-label_col])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+
+
+#get train and test
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE)
+print(model.rf)
+```
+
+    ## 
+    ## Call:
+    ##  randomForest(formula = model, data = Train, ntree = 5000, mtry = 15,      importance = TRUE) 
+    ##                Type of random forest: classification
+    ##                      Number of trees: 5000
+    ## No. of variables tried at each split: 15
+    ## 
+    ##         OOB estimate of  error rate: 33.07%
+    ## Confusion matrix:
+    ##   0  1  2 class.error
+    ## 0 0  7  4   1.0000000
+    ## 1 1 58 13   0.1944444
+    ## 2 1 16 27   0.3863636
+
+``` r
+#get predicted
+Test$pred = predict(model.rf, Test, type="response")
+
+table(Test$transmission.mode.to.humans.simplified.numeric, 
+      Test$pred)
+```
+
+    ##    
+    ##      0  1  2
+    ##   0  1  1  0
+    ##   1  0 11  6
+    ##   2  0  6  4
+
+``` r
+varImpPlot(model.rf,type=2, n.var = 20)
+```
+
+![](multiclass_classification_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->

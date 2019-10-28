@@ -25,7 +25,8 @@ neededPackages <- c("xgboost", #the main algorithm
                     "caret", #for the confusionmatrix() function (also needs e1071 package)
                     "dplyr",# for some data preparation
                     "Ckmeans.1d.dp",# for xgb.ggplot.importance
-                    "stringr")#str_replace
+                    "stringr",#str_replace
+                    "randomForest")#random forest
 
 for (package in neededPackages){pkgTest(package)}
 
@@ -302,3 +303,44 @@ head(importance_matrix)
 gp = xgb.ggplot.importance(importance_matrix, top_n = 20)
 print(gp) 
 ```
+
+###randomForest
+```{r}
+#dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
+
+#remove rows which have empty values
+row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
+predictors_no_NA <- dat[!row.has.na, ]
+dat = predictors_no_NA
+dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+names <-  colnames(dat[,-label_col])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+
+
+#get train and test
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE)
+print(model.rf)
+#get predicted
+Test$pred = predict(model.rf, Test, type="response")
+
+table(Test$transmission.mode.to.humans.simplified.numeric, 
+      Test$pred)
+
+varImpPlot(model.rf,type=2, n.var = 20)
+
+```
+
