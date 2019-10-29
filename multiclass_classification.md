@@ -1077,3 +1077,80 @@ varImpPlot(model.rf,type=2, n.var = 20)
 ```
 
 ![](multiclass_classification_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+
+\#\#\#randomForest with all classes, classwt inversely proportional
+
+``` r
+dat = dat_backup
+#remove rows which have empty values
+row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
+predictors_no_NA <- dat[!row.has.na, ]
+dat = predictors_no_NA
+# dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
+
+dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
+
+tab = table(dat$transmission.mode.to.humans.simplified.numeric)
+tab_frac = tab/dim(dat)[1]
+tab_frac= c(tab_frac)
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+names <-  colnames(dat[,-label_col])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+
+
+#get train and test
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+mySampSize <- c(15,15)
+
+model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE,
+                        classwt = c(tab_frac[3], tab_frac[2], tab_frac[1]),
+                        # strata=as.factor(Train[,"transmission.mode.to.humans.simplified.numeric"])
+                        )
+print(model.rf)
+```
+
+    ## 
+    ## Call:
+    ##  randomForest(formula = model, data = Train, ntree = 5000, mtry = 15,      importance = TRUE, classwt = c(tab_frac[3], tab_frac[2],          tab_frac[1]), ) 
+    ##                Type of random forest: classification
+    ##                      Number of trees: 5000
+    ## No. of variables tried at each split: 15
+    ## 
+    ##         OOB estimate of  error rate: 33.86%
+    ## Confusion matrix:
+    ##   0  1  2 class.error
+    ## 0 2  8  1   0.8181818
+    ## 1 0 59 13   0.1805556
+    ## 2 0 21 23   0.4772727
+
+``` r
+#get predicted
+Test$pred = predict(model.rf, Test, type="response")
+
+table(Test$transmission.mode.to.humans.simplified.numeric, 
+      Test$pred)
+```
+
+    ##    
+    ##      0  1  2
+    ##   0  0  2  0
+    ##   1  1 13  3
+    ##   2  1  4  5
+
+``` r
+varImpPlot(model.rf,type=2, n.var = 20)
+```
+
+![](multiclass_classification_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
