@@ -1763,7 +1763,7 @@ ggsave(filename = "deviance_enviro_vector.jpg",
 ```
 
     ##        user      system     elapsed 
-    ## 0.089433333 0.004016667 0.321783333
+    ## 0.089466667 0.002933333 0.302916667
 
 ``` r
 load("gbmtest.Rdata")
@@ -1807,39 +1807,45 @@ abline(a=0, b= 1)
 
 ``` r
 # output predictions on the Test SET
-output<-predict(gbmtest,
-                newdata=Test,
-                n.trees=best.iter,
-                type="response")
-
-
-output<-cbind(output,Test$transmission.mode.to.humans.simplified.numeric)
-colnames(output)<-c("output","data")
-rownames(output)<-rownames(Test)
-output<-output[order(-output[,1]),]
-
-# # AUC for Bernoulli distributed responses
-par(mar = c(1,1,1,1))
-auc=colAUC(output[,1],output[,2],
-           plotROC = TRUE)
 ```
 
-![](multiclass_classification_files/figure-gfm/gbm-4.png)<!-- -->
+\#\#\#plot relative influence
 
 ``` r
-print(auc)
+load("gbmtest.Rdata")
+x = summary(gbmtest)
 ```
 
-    ##              [,1]
-    ## 0 vs. 1 0.5885417
+![](multiclass_classification_files/figure-gfm/gbm_rel_inf-1.png)<!-- -->
 
 ``` r
-pred<-prediction(output[,1],output[,2])
-perf<-performance(pred,"tpr","fpr")
+# 
+x.df= data.frame(variable = x$var,
+                 relative.influence = x$rel.inf)
 
-par(mar = c(1,1,1,1))
-plot(perf,colorize=TRUE,main="ROC full model test data")
-abline(a=0, b= 1)
+x.df.0 = subset(x.df, relative.influence==0)
+dim(x.df.0)[1]
 ```
 
-![](multiclass_classification_files/figure-gfm/gbm-5.png)<!-- -->
+    ## [1] 4
+
+``` r
+x.df = subset(x.df, relative.influence>=1)#take only interesting variables
+
+x.df$variable = factor(x.df$variable, levels = x.df$variable[order(x.df$relative.influence)])
+save(x.df, file = "x.df.Rdata")
+ggplot(data = x.df, aes(x = variable, y =relative.influence))+
+  ylab("relative influence (%)")+
+  xlab("variable")+
+  geom_bar(stat="identity")+
+  coord_flip()
+```
+
+![](multiclass_classification_files/figure-gfm/gbm_rel_inf-2.png)<!-- -->
+
+``` r
+# 
+ggsave("Figure.relative.influence.jpg")
+```
+
+    ## Saving 7 x 5 in image

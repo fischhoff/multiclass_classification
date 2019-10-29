@@ -638,29 +638,31 @@ plot(perf,colorize=TRUE,main="ROC full model")
 abline(a=0, b= 1)
 
 # output predictions on the Test SET
-output<-predict(gbmtest,
-                newdata=Test,
-                n.trees=best.iter,
-                type="response")
+```
 
+###plot relative influence
+```{r gbm_rel_inf}
 
-output<-cbind(output,Test$transmission.mode.to.humans.simplified.numeric)
-colnames(output)<-c("output","data")
-rownames(output)<-rownames(Test)
-output<-output[order(-output[,1]),]
+load("gbmtest.Rdata")
+x = summary(gbmtest)
+# 
+x.df= data.frame(variable = x$var,
+                 relative.influence = x$rel.inf)
 
-# # AUC for Bernoulli distributed responses
-par(mar = c(1,1,1,1))
-auc=colAUC(output[,1],output[,2],
-           plotROC = TRUE)
+x.df.0 = subset(x.df, relative.influence==0)
+dim(x.df.0)[1]
+x.df = subset(x.df, relative.influence>=1)#take only interesting variables
 
-print(auc)
-pred<-prediction(output[,1],output[,2])
-perf<-performance(pred,"tpr","fpr")
+x.df$variable = factor(x.df$variable, levels = x.df$variable[order(x.df$relative.influence)])
+save(x.df, file = "x.df.Rdata")
+ggplot(data = x.df, aes(x = variable, y =relative.influence))+
+  ylab("relative influence (%)")+
+  xlab("variable")+
+  geom_bar(stat="identity")+
+  coord_flip()
+# 
+ggsave("Figure.relative.influence.jpg")
 
-par(mar = c(1,1,1,1))
-plot(perf,colorize=TRUE,main="ROC full model test data")
-abline(a=0, b= 1)
 
 ```
 
