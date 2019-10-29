@@ -26,7 +26,9 @@ neededPackages <- c("xgboost", #the main algorithm
                     "dplyr",# for some data preparation
                     "Ckmeans.1d.dp",# for xgb.ggplot.importance
                     "stringr",#str_replace
-                    "randomForest")#random forest
+                    "randomForest",#random forest
+                    "gbm",#gbm
+                    "caTools", "ROCR")
 
 for (package in neededPackages){pkgTest(package)}
 
@@ -494,7 +496,7 @@ varImpPlot(model.rf,type=2, n.var = 20)
 
 
 ###randomForest with all  classes, classwt inversely proportional
-```{r}
+```{r rf_inverse}
 dat = dat_backup
 #remove rows which have empty values
 row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
@@ -542,3 +544,123 @@ table(Test$transmission.mode.to.humans.simplified.numeric,
 varImpPlot(model.rf,type=2, n.var = 20)
 
 ```
+
+###GBM with two most common classes
+```{r gbm}
+dat = dat_backup
+
+dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
+
+ind1 = which(dat$transmission.mode.to.humans.simplified.numeric==1)
+dat$transmission.mode.to.humans.simplified.numeric[ind1]=0
+
+ind2 = which(dat$transmission.mode.to.humans.simplified.numeric==2)
+dat$transmission.mode.to.humans.simplified.numeric[ind2]=1
+
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+names <-  colnames(dat[,-label_col])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+
+
+#get train and test
+dat$transmission.mode.to.humans.simplified.numeric = as.numeric(as.character(dat$transmission.mode.to.humans.simplified.numeric))
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+ptm<-proc.time()
+
+n.trees = 10000
+shrinkage = 0.001#final version should be 0.001
+cv.folds = 10#final version should be 10
+gbmtest<- gbm(model,
+              data=Train,
+              distribution="bernoulli",
+              n.trees=n.trees,
+              shrinkage=shrinkage,
+              interaction.depth=3,
+              bag.fraction=0.50,
+              train.fraction=1,
+              n.minobsinnode=5,
+              cv.folds=cv.folds,
+              keep.data=TRUE,
+              verbose=TRUE,
+              n.cores=NULL)
+
+save(gbmtest, file = "gbmtest.Rdata")
+#check performance using 5-fold cross-validation
+best.iter <- gbm.perf(gbmtest,method="cv",plot.it=FALSE) #this gives you the optimal number of trees based on cv performance, other methods will over or under predict
+print(best.iter)
+
+gbm_error = data.frame(train.error = gbmtest$train.error,
+                       trees = seq(1,n.trees))
+plot <- ggplot(gbm_error, aes(x = trees, y = train.error))+
+  geom_line()
+plot
+ggsave(filename = "deviance_enviro_vector.jpg",
+       plot = plot)
+#Stop the clock
+(proc.time()-ptm)/60
+
+load("gbmtest.Rdata")
+best.iter <- gbm.perf(gbmtest,method="cv",plot.it=FALSE) #this gives you the optimal number of trees based on cv performance, other methods 
+# output predictions on the TRAINING SET
+output<-predict(gbmtest, 
+                newdata=Train, 
+                n.trees=best.iter, 
+                type="response") 
+
+output<-cbind(output,Train$transmission.mode.to.humans.simplified.numeric)
+colnames(output)<-c("output","data")
+rownames(output)<-rownames(Train)
+output<-output[order(-output[,1]),]
+
+# # AUC for Bernoulli distributed responses
+par(mar = c(1,1,1,1))
+auc=colAUC(output[,1],output[,2],
+           plotROC = TRUE)
+
+print(auc)
+pred<-prediction(output[,1],output[,2])
+perf<-performance(pred,"tpr","fpr")
+
+par(mar = c(1,1,1,1))
+plot(perf,colorize=TRUE,main="ROC full model")
+abline(a=0, b= 1)
+
+# output predictions on the Test SET
+output<-predict(gbmtest,
+                newdata=Test,
+                n.trees=best.iter,
+                type="response")
+
+
+output<-cbind(output,Test$transmission.mode.to.humans.simplified.numeric)
+colnames(output)<-c("output","data")
+rownames(output)<-rownames(Test)
+output<-output[order(-output[,1]),]
+
+# # AUC for Bernoulli distributed responses
+par(mar = c(1,1,1,1))
+auc=colAUC(output[,1],output[,2],
+           plotROC = TRUE)
+
+print(auc)
+pred<-prediction(output[,1],output[,2])
+perf<-performance(pred,"tpr","fpr")
+
+par(mar = c(1,1,1,1))
+plot(perf,colorize=TRUE,main="ROC full model test data")
+abline(a=0, b= 1)
+
+```
+
