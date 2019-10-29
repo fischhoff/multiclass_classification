@@ -855,3 +855,225 @@ varImpPlot(model.rf,type=2, n.var = 20)
 ```
 
 ![](multiclass_classification_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+
+\#\#\#randomForest with only more abundant classes, sampsize
+proportional
+
+``` r
+dat_backup = dat
+#remove rows which have empty values
+row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
+predictors_no_NA <- dat[!row.has.na, ]
+dat = predictors_no_NA
+dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
+
+dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
+
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+names <-  colnames(dat[,-label_col])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+
+
+#get train and test
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+mySampSize <- ceiling(table(Train$transmission.mode.to.humans.simplified.numeric) * 0.632)
+
+model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE,
+                        sampsize = mySampSize,
+                        # strata=as.factor(Train[,"transmission.mode.to.humans.simplified.numeric"])
+                        )
+print(model.rf)
+```
+
+    ## 
+    ## Call:
+    ##  randomForest(formula = model, data = Train, ntree = 5000, mtry = 15,      importance = TRUE, sampsize = mySampSize, ) 
+    ##                Type of random forest: classification
+    ##                      Number of trees: 5000
+    ## No. of variables tried at each split: 15
+    ## 
+    ##         OOB estimate of  error rate: 34.48%
+    ## Confusion matrix:
+    ##    1  2 class.error
+    ## 1 56 16   0.2222222
+    ## 2 24 20   0.5454545
+
+``` r
+#get predicted
+Test$pred = predict(model.rf, Test, type="response")
+
+table(Test$transmission.mode.to.humans.simplified.numeric, 
+      Test$pred)
+```
+
+    ##    
+    ##      1  2
+    ##   1 15  2
+    ##   2  4  6
+
+``` r
+varImpPlot(model.rf,type=2, n.var = 20)
+```
+
+![](multiclass_classification_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+
+\#\#\#randomForest with only more abundant classes, sampsize equal
+
+``` r
+dat = dat_backup
+#remove rows which have empty values
+row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
+predictors_no_NA <- dat[!row.has.na, ]
+dat = predictors_no_NA
+dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
+
+dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
+
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+names <-  colnames(dat[,-label_col])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+
+
+#get train and test
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+mySampSize <- c(15,15)
+
+model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE,
+                        sampsize = mySampSize,
+                        # strata=as.factor(Train[,"transmission.mode.to.humans.simplified.numeric"])
+                        )
+print(model.rf)
+```
+
+    ## 
+    ## Call:
+    ##  randomForest(formula = model, data = Train, ntree = 5000, mtry = 15,      importance = TRUE, sampsize = mySampSize, ) 
+    ##                Type of random forest: classification
+    ##                      Number of trees: 5000
+    ## No. of variables tried at each split: 15
+    ## 
+    ##         OOB estimate of  error rate: 31.9%
+    ## Confusion matrix:
+    ##    1  2 class.error
+    ## 1 50 22   0.3055556
+    ## 2 15 29   0.3409091
+
+``` r
+#get predicted
+Test$pred = predict(model.rf, Test, type="response")
+
+table(Test$transmission.mode.to.humans.simplified.numeric, 
+      Test$pred)
+```
+
+    ##    
+    ##      1  2
+    ##   1 12  5
+    ##   2  4  6
+
+``` r
+varImpPlot(model.rf,type=2, n.var = 20)
+```
+
+![](multiclass_classification_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
+\#\#\#randomForest with all classes, classwt proportional
+
+``` r
+dat = dat_backup
+#remove rows which have empty values
+row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
+predictors_no_NA <- dat[!row.has.na, ]
+dat = predictors_no_NA
+# dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
+
+dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
+
+tab = table(dat$transmission.mode.to.humans.simplified.numeric)
+tab_frac = tab/dim(dat)[1]
+tab_frac= c(tab_frac)
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+names <-  colnames(dat[,-label_col])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+
+
+#get train and test
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+mySampSize <- c(15,15)
+
+model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE,
+                        classwt = tab_frac,
+                        # strata=as.factor(Train[,"transmission.mode.to.humans.simplified.numeric"])
+                        )
+print(model.rf)
+```
+
+    ## 
+    ## Call:
+    ##  randomForest(formula = model, data = Train, ntree = 5000, mtry = 15,      importance = TRUE, classwt = tab_frac, ) 
+    ##                Type of random forest: classification
+    ##                      Number of trees: 5000
+    ## No. of variables tried at each split: 15
+    ## 
+    ##         OOB estimate of  error rate: 39.37%
+    ## Confusion matrix:
+    ##   0  1  2 class.error
+    ## 0 1  6  4   0.9090909
+    ## 1 0 55 17   0.2361111
+    ## 2 1 22 21   0.5227273
+
+``` r
+#get predicted
+Test$pred = predict(model.rf, Test, type="response")
+
+table(Test$transmission.mode.to.humans.simplified.numeric, 
+      Test$pred)
+```
+
+    ##    
+    ##      0  1  2
+    ##   0  0  1  1
+    ##   1  0 11  6
+    ##   2  0  3  7
+
+``` r
+varImpPlot(model.rf,type=2, n.var = 20)
+```
+
+![](multiclass_classification_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
