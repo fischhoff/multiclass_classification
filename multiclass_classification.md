@@ -52,6 +52,21 @@ Ilya
     ## 
     ##     lowess
 
+    ## Loading required package: rquery
+
+    ## 
+    ## Attaching package: 'rquery'
+
+    ## The following object is masked from 'package:ggplot2':
+    ## 
+    ##     arrow
+
+    ## Loading required package: Matrix
+
+    ## Loading required package: foreach
+
+    ## Loaded glmnet 2.0-18
+
 Here is where we:
 
 Load the RBGlass1 dataset convert the variable Site from a factor to
@@ -1763,7 +1778,7 @@ ggsave(filename = "deviance_enviro_vector.jpg",
 ```
 
     ##        user      system     elapsed 
-    ## 0.089466667 0.002933333 0.302916667
+    ## 0.087400000 0.002666667 0.304350000
 
 ``` r
 load("gbmtest.Rdata")
@@ -1849,3 +1864,700 @@ ggsave("Figure.relative.influence.jpg")
 ```
 
     ## Saving 7 x 5 in image
+
+\#\#\#prepare data with vtreat
+
+``` r
+dat = dat_backup
+dat$random = factor(sample(c(0,1), size = dim(dat)[1], replace = TRUE))
+transform_design = vtreat::mkCrossFrameMExperiment(
+    d = dat,                                         # data to learn transform from
+    vars = setdiff(colnames(dat), c('transmission.mode.to.humans.simplified.numeric')),     # columns to transform
+    y_name = 'transmission.mode.to.humans.simplified.numeric'# outcome variable
+)
+transform <- transform_design$treat_m
+d_prepared <- transform_design$cross_frame
+score_frame <- transform_design$score_frame
+score_frame$recommended <- score_frame$varMoves & (score_frame$sig < 1/nrow(score_frame))
+
+knitr::kable(score_frame)
+```
+
+| varName                           | varMoves |       rsq |       sig | outcome\_level | needsSplit | extraModelDegrees | origName                        | code  | recommended |
+| :-------------------------------- | :------- | --------: | --------: | :------------- | :--------- | ----------------: | :------------------------------ | :---- | :---------- |
+| lst\_Apr                          | TRUE     | 0.0007395 | 0.7969841 | 0              | FALSE      |                 0 | lst\_Apr                        | clean | FALSE       |
+| lst\_Aug                          | TRUE     | 0.0060295 | 0.4625994 | 0              | FALSE      |                 0 | lst\_Aug                        | clean | FALSE       |
+| lst\_Dec                          | TRUE     | 0.0000038 | 0.9852695 | 0              | FALSE      |                 0 | lst\_Dec                        | clean | FALSE       |
+| lst\_Feb                          | TRUE     | 0.0000018 | 0.9897703 | 0              | FALSE      |                 0 | lst\_Feb                        | clean | FALSE       |
+| lst\_Jan                          | TRUE     | 0.0001995 | 0.8937135 | 0              | FALSE      |                 0 | lst\_Jan                        | clean | FALSE       |
+| lst\_Jul                          | TRUE     | 0.0043209 | 0.5340470 | 0              | FALSE      |                 0 | lst\_Jul                        | clean | FALSE       |
+| lst\_Jun                          | TRUE     | 0.0030493 | 0.6013986 | 0              | FALSE      |                 0 | lst\_Jun                        | clean | FALSE       |
+| lst\_Mar                          | TRUE     | 0.0002868 | 0.8727159 | 0              | FALSE      |                 0 | lst\_Mar                        | clean | FALSE       |
+| lst\_max                          | TRUE     | 0.0045841 | 0.5218435 | 0              | FALSE      |                 0 | lst\_max                        | clean | FALSE       |
+| lst\_May                          | TRUE     | 0.0021003 | 0.6646152 | 0              | FALSE      |                 0 | lst\_May                        | clean | FALSE       |
+| lst\_mean                         | TRUE     | 0.0015493 | 0.7096259 | 0              | FALSE      |                 0 | lst\_mean                       | clean | FALSE       |
+| lst\_min                          | TRUE     | 0.0001872 | 0.8970109 | 0              | FALSE      |                 0 | lst\_min                        | clean | FALSE       |
+| lst\_Nov                          | TRUE     | 0.0003583 | 0.8578873 | 0              | FALSE      |                 0 | lst\_Nov                        | clean | FALSE       |
+| lst\_Oct                          | TRUE     | 0.0052325 | 0.4937819 | 0              | FALSE      |                 0 | lst\_Oct                        | clean | FALSE       |
+| lst\_Sep                          | TRUE     | 0.0115186 | 0.3099635 | 0              | FALSE      |                 0 | lst\_Sep                        | clean | FALSE       |
+| random\_lev\_x\_0                 | TRUE     | 0.0829814 | 0.0064280 | 0              | FALSE      |                 0 | random                          | lev   | FALSE       |
+| random\_lev\_x\_1                 | TRUE     | 0.0829814 | 0.0064280 | 0              | FALSE      |                 0 | random                          | lev   | FALSE       |
+| rf\_Apr                           | TRUE     | 0.0075938 | 0.4097279 | 0              | FALSE      |                 0 | rf\_Apr                         | clean | FALSE       |
+| rf\_Aug                           | TRUE     | 0.0158043 | 0.2343316 | 0              | FALSE      |                 0 | rf\_Aug                         | clean | FALSE       |
+| rf\_Dec                           | TRUE     | 0.0583667 | 0.0222849 | 0              | FALSE      |                 0 | rf\_Dec                         | clean | FALSE       |
+| rf\_Feb                           | TRUE     | 0.0400404 | 0.0583621 | 0              | FALSE      |                 0 | rf\_Feb                         | clean | FALSE       |
+| rf\_Jan                           | TRUE     | 0.0573737 | 0.0234544 | 0              | FALSE      |                 0 | rf\_Jan                         | clean | FALSE       |
+| rf\_Jul                           | TRUE     | 0.0193635 | 0.1880415 | 0              | FALSE      |                 0 | rf\_Jul                         | clean | FALSE       |
+| rf\_Jun                           | TRUE     | 0.0198630 | 0.1824446 | 0              | FALSE      |                 0 | rf\_Jun                         | clean | FALSE       |
+| rf\_Mar                           | TRUE     | 0.0188759 | 0.1936989 | 0              | FALSE      |                 0 | rf\_Mar                         | clean | FALSE       |
+| rf\_max                           | TRUE     | 0.0401536 | 0.0580072 | 0              | FALSE      |                 0 | rf\_max                         | clean | FALSE       |
+| rf\_May                           | TRUE     | 0.0146054 | 0.2529240 | 0              | FALSE      |                 0 | rf\_May                         | clean | FALSE       |
+| rf\_mean                          | TRUE     | 0.0430894 | 0.0495626 | 0              | FALSE      |                 0 | rf\_mean                        | clean | FALSE       |
+| rf\_min                           | TRUE     | 0.0417726 | 0.0531770 | 0              | FALSE      |                 0 | rf\_min                         | clean | FALSE       |
+| rf\_Nov                           | TRUE     | 0.0309047 | 0.0963015 | 0              | FALSE      |                 0 | rf\_Nov                         | clean | FALSE       |
+| rf\_Oct                           | TRUE     | 0.0225347 | 0.1555779 | 0              | FALSE      |                 0 | rf\_Oct                         | clean | FALSE       |
+| rf\_Sep                           | TRUE     | 0.0255231 | 0.1307030 | 0              | FALSE      |                 0 | rf\_Sep                         | clean | FALSE       |
+| sh\_Apr                           | TRUE     | 0.0005469 | 0.8249143 | 0              | FALSE      |                 0 | sh\_Apr                         | clean | FALSE       |
+| sh\_Aug                           | TRUE     | 0.0172460 | 0.2141134 | 0              | FALSE      |                 0 | sh\_Aug                         | clean | FALSE       |
+| sh\_Dec                           | TRUE     | 0.0039686 | 0.5512053 | 0              | FALSE      |                 0 | sh\_Dec                         | clean | FALSE       |
+| sh\_Feb                           | TRUE     | 0.0018960 | 0.6803949 | 0              | FALSE      |                 0 | sh\_Feb                         | clean | FALSE       |
+| sh\_Jan                           | TRUE     | 0.0040714 | 0.5460924 | 0              | FALSE      |                 0 | sh\_Jan                         | clean | FALSE       |
+| sh\_Jul                           | TRUE     | 0.0175519 | 0.2100950 | 0              | FALSE      |                 0 | sh\_Jul                         | clean | FALSE       |
+| sh\_Jun                           | TRUE     | 0.0130035 | 0.2806959 | 0              | FALSE      |                 0 | sh\_Jun                         | clean | FALSE       |
+| sh\_Mar                           | TRUE     | 0.0006117 | 0.8150122 | 0              | FALSE      |                 0 | sh\_Mar                         | clean | FALSE       |
+| sh\_max                           | TRUE     | 0.0096633 | 0.3523998 | 0              | FALSE      |                 0 | sh\_max                         | clean | FALSE       |
+| sh\_May                           | TRUE     | 0.0040527 | 0.5470160 | 0              | FALSE      |                 0 | sh\_May                         | clean | FALSE       |
+| sh\_mean                          | TRUE     | 0.0063934 | 0.4494021 | 0              | FALSE      |                 0 | sh\_mean                        | clean | FALSE       |
+| sh\_min                           | TRUE     | 0.0041743 | 0.5410670 | 0              | FALSE      |                 0 | sh\_min                         | clean | FALSE       |
+| sh\_Nov                           | TRUE     | 0.0028132 | 0.6158392 | 0              | FALSE      |                 0 | sh\_Nov                         | clean | FALSE       |
+| sh\_Oct                           | TRUE     | 0.0069015 | 0.4319268 | 0              | FALSE      |                 0 | sh\_Oct                         | clean | FALSE       |
+| sh\_Sep                           | TRUE     | 0.0133012 | 0.2752567 | 0              | FALSE      |                 0 | sh\_Sep                         | clean | FALSE       |
+| sm\_Apr                           | TRUE     | 0.0113920 | 0.3126371 | 0              | FALSE      |                 0 | sm\_Apr                         | clean | FALSE       |
+| sm\_Aug                           | TRUE     | 0.0301887 | 0.1002433 | 0              | FALSE      |                 0 | sm\_Aug                         | clean | FALSE       |
+| sm\_Dec                           | TRUE     | 0.0504278 | 0.0336397 | 0              | FALSE      |                 0 | sm\_Dec                         | clean | FALSE       |
+| sm\_Feb                           | TRUE     | 0.0444593 | 0.0460768 | 0              | FALSE      |                 0 | sm\_Feb                         | clean | FALSE       |
+| sm\_Jan                           | TRUE     | 0.0616700 | 0.0188107 | 0              | FALSE      |                 0 | sm\_Jan                         | clean | FALSE       |
+| sm\_Jul                           | TRUE     | 0.0318192 | 0.0915112 | 0              | FALSE      |                 0 | sm\_Jul                         | clean | FALSE       |
+| sm\_Jun                           | TRUE     | 0.0274157 | 0.1172623 | 0              | FALSE      |                 0 | sm\_Jun                         | clean | FALSE       |
+| sm\_Mar                           | TRUE     | 0.0264805 | 0.1237019 | 0              | FALSE      |                 0 | sm\_Mar                         | clean | FALSE       |
+| sm\_max                           | TRUE     | 0.0449029 | 0.0450041 | 0              | FALSE      |                 0 | sm\_max                         | clean | FALSE       |
+| sm\_May                           | TRUE     | 0.0155587 | 0.2380009 | 0              | FALSE      |                 0 | sm\_May                         | clean | FALSE       |
+| sm\_mean                          | TRUE     | 0.0449029 | 0.0450041 | 0              | FALSE      |                 0 | sm\_mean                        | clean | FALSE       |
+| sm\_min                           | TRUE     | 0.0304857 | 0.0985873 | 0              | FALSE      |                 0 | sm\_min                         | clean | FALSE       |
+| sm\_Nov                           | TRUE     | 0.0296523 | 0.1033112 | 0              | FALSE      |                 0 | sm\_Nov                         | clean | FALSE       |
+| sm\_Oct                           | TRUE     | 0.0271175 | 0.1192748 | 0              | FALSE      |                 0 | sm\_Oct                         | clean | FALSE       |
+| sm\_Sep                           | TRUE     | 0.0284691 | 0.1104495 | 0              | FALSE      |                 0 | sm\_Sep                         | clean | FALSE       |
+| tair\_Apr                         | TRUE     | 0.0026304 | 0.6275453 | 0              | FALSE      |                 0 | tair\_Apr                       | clean | FALSE       |
+| tair\_Aug                         | TRUE     | 0.0024793 | 0.6376106 | 0              | FALSE      |                 0 | tair\_Aug                       | clean | FALSE       |
+| tair\_Dec                         | TRUE     | 0.0042844 | 0.5357784 | 0              | FALSE      |                 0 | tair\_Dec                       | clean | FALSE       |
+| tair\_Feb                         | TRUE     | 0.0031916 | 0.5930385 | 0              | FALSE      |                 0 | tair\_Feb                       | clean | FALSE       |
+| tair\_Jan                         | TRUE     | 0.0046751 | 0.5177416 | 0              | FALSE      |                 0 | tair\_Jan                       | clean | FALSE       |
+| tair\_Jul                         | TRUE     | 0.0014557 | 0.7181438 | 0              | FALSE      |                 0 | tair\_Jul                       | clean | FALSE       |
+| tair\_Jun                         | TRUE     | 0.0023259 | 0.6482234 | 0              | FALSE      |                 0 | tair\_Jun                       | clean | FALSE       |
+| tair\_Mar                         | TRUE     | 0.0027050 | 0.6227082 | 0              | FALSE      |                 0 | tair\_Mar                       | clean | FALSE       |
+| tair\_max                         | TRUE     | 0.0096633 | 0.3523998 | 0              | FALSE      |                 0 | tair\_max                       | clean | FALSE       |
+| tair\_May                         | TRUE     | 0.0024432 | 0.6400685 | 0              | FALSE      |                 0 | tair\_May                       | clean | FALSE       |
+| tair\_mean                        | TRUE     | 0.0063934 | 0.4494021 | 0              | FALSE      |                 0 | tair\_mean                      | clean | FALSE       |
+| tair\_min                         | TRUE     | 0.0041743 | 0.5410670 | 0              | FALSE      |                 0 | tair\_min                       | clean | FALSE       |
+| tair\_Nov                         | TRUE     | 0.0048555 | 0.5097715 | 0              | FALSE      |                 0 | tair\_Nov                       | clean | FALSE       |
+| tair\_Oct                         | TRUE     | 0.0039833 | 0.5504715 | 0              | FALSE      |                 0 | tair\_Oct                       | clean | FALSE       |
+| tair\_Sep                         | TRUE     | 0.0027719 | 0.6184415 | 0              | FALSE      |                 0 | tair\_Sep                       | clean | FALSE       |
+| X13\_1\_AdultHeadBodyLen\_mm      | TRUE     | 0.0005476 | 0.8247982 | 0              | FALSE      |                 0 | X13.1\_AdultHeadBodyLen\_mm     | clean | FALSE       |
+| X15\_1\_LitterSize                | TRUE     | 0.0185087 | 0.1980912 | 0              | FALSE      |                 0 | X15.1\_LitterSize               | clean | FALSE       |
+| X16\_1\_LittersPerYear            | TRUE     | 0.0045113 | 0.5251703 | 0              | FALSE      |                 0 | X16.1\_LittersPerYear           | clean | FALSE       |
+| X18\_1\_BasalMetRate\_mLO2hr      | TRUE     | 0.0024023 | 0.6428859 | 0              | FALSE      |                 0 | X18.1\_BasalMetRate\_mLO2hr     | clean | FALSE       |
+| X2\_1\_AgeatEyeOpening\_d         | TRUE     | 0.0097501 | 0.3502462 | 0              | FALSE      |                 0 | X2.1\_AgeatEyeOpening\_d        | clean | FALSE       |
+| X21\_1\_PopulationDensity\_n\_km2 | TRUE     | 0.0000001 | 0.9978898 | 0              | FALSE      |                 0 | X21.1\_PopulationDensity\_n.km2 | clean | FALSE       |
+| X22\_1\_HomeRange\_km2            | TRUE     | 0.0176495 | 0.2088325 | 0              | FALSE      |                 0 | X22.1\_HomeRange\_km2           | clean | FALSE       |
+| X23\_1\_SexualMaturityAge\_d      | TRUE     | 0.0001168 | 0.9185780 | 0              | FALSE      |                 0 | X23.1\_SexualMaturityAge\_d     | clean | FALSE       |
+| X24\_1\_TeatNumber                | TRUE     | 0.0003159 | 0.8664640 | 0              | FALSE      |                 0 | X24.1\_TeatNumber               | clean | FALSE       |
+| X25\_1\_WeaningAge\_d             | TRUE     | 0.0319062 | 0.0910687 | 0              | FALSE      |                 0 | X25.1\_WeaningAge\_d            | clean | FALSE       |
+| X26\_1\_GR\_Area\_km2             | TRUE     | 0.0067277 | 0.4377839 | 0              | FALSE      |                 0 | X26.1\_GR\_Area\_km2            | clean | FALSE       |
+| X5\_1\_AdultBodyMass\_g           | TRUE     | 0.0059789 | 0.4644830 | 0              | FALSE      |                 0 | X5.1\_AdultBodyMass\_g          | clean | FALSE       |
+| X5\_3\_NeonateBodyMass\_g         | TRUE     | 0.0064578 | 0.4471274 | 0              | FALSE      |                 0 | X5.3\_NeonateBodyMass\_g        | clean | FALSE       |
+| X9\_1\_GestationLen\_d            | TRUE     | 0.0000982 | 0.9252944 | 0              | FALSE      |                 0 | X9.1\_GestationLen\_d           | clean | FALSE       |
+| lst\_Apr                          | TRUE     | 0.0206507 | 0.0359038 | 1              | FALSE      |                 0 | lst\_Apr                        | clean | FALSE       |
+| lst\_Aug                          | TRUE     | 0.0468983 | 0.0015685 | 1              | FALSE      |                 0 | lst\_Aug                        | clean | TRUE        |
+| lst\_Dec                          | TRUE     | 0.0016186 | 0.5569529 | 1              | FALSE      |                 0 | lst\_Dec                        | clean | FALSE       |
+| lst\_Feb                          | TRUE     | 0.0023882 | 0.4755551 | 1              | FALSE      |                 0 | lst\_Feb                        | clean | FALSE       |
+| lst\_Jan                          | TRUE     | 0.0014029 | 0.5844886 | 1              | FALSE      |                 0 | lst\_Jan                        | clean | FALSE       |
+| lst\_Jul                          | TRUE     | 0.0462863 | 0.0016837 | 1              | FALSE      |                 0 | lst\_Jul                        | clean | TRUE        |
+| lst\_Jun                          | TRUE     | 0.0451325 | 0.0019247 | 1              | FALSE      |                 0 | lst\_Jun                        | clean | TRUE        |
+| lst\_Mar                          | TRUE     | 0.0074701 | 0.2070073 | 1              | FALSE      |                 0 | lst\_Mar                        | clean | FALSE       |
+| lst\_max                          | TRUE     | 0.0457335 | 0.0017951 | 1              | FALSE      |                 0 | lst\_max                        | clean | TRUE        |
+| lst\_May                          | TRUE     | 0.0413142 | 0.0030023 | 1              | FALSE      |                 0 | lst\_May                        | clean | TRUE        |
+| lst\_mean                         | TRUE     | 0.0235905 | 0.0249366 | 1              | FALSE      |                 0 | lst\_mean                       | clean | FALSE       |
+| lst\_min                          | TRUE     | 0.0055875 | 0.2751356 | 1              | FALSE      |                 0 | lst\_min                        | clean | FALSE       |
+| lst\_Nov                          | TRUE     | 0.0056974 | 0.2704653 | 1              | FALSE      |                 0 | lst\_Nov                        | clean | FALSE       |
+| lst\_Oct                          | TRUE     | 0.0243621 | 0.0226813 | 1              | FALSE      |                 0 | lst\_Oct                        | clean | FALSE       |
+| lst\_Sep                          | TRUE     | 0.0483481 | 0.0013264 | 1              | FALSE      |                 0 | lst\_Sep                        | clean | TRUE        |
+| random\_lev\_x\_0                 | TRUE     | 0.0278070 | 0.0149103 | 1              | FALSE      |                 0 | random                          | lev   | FALSE       |
+| random\_lev\_x\_1                 | TRUE     | 0.0278070 | 0.0149103 | 1              | FALSE      |                 0 | random                          | lev   | FALSE       |
+| rf\_Apr                           | TRUE     | 0.0150634 | 0.0731561 | 1              | FALSE      |                 0 | rf\_Apr                         | clean | FALSE       |
+| rf\_Aug                           | TRUE     | 0.0120335 | 0.1092576 | 1              | FALSE      |                 0 | rf\_Aug                         | clean | FALSE       |
+| rf\_Dec                           | TRUE     | 0.0355295 | 0.0059247 | 1              | FALSE      |                 0 | rf\_Dec                         | clean | FALSE       |
+| rf\_Feb                           | TRUE     | 0.0260886 | 0.0183676 | 1              | FALSE      |                 0 | rf\_Feb                         | clean | FALSE       |
+| rf\_Jan                           | TRUE     | 0.0325994 | 0.0083888 | 1              | FALSE      |                 0 | rf\_Jan                         | clean | FALSE       |
+| rf\_Jul                           | TRUE     | 0.0153443 | 0.0705312 | 1              | FALSE      |                 0 | rf\_Jul                         | clean | FALSE       |
+| rf\_Jun                           | TRUE     | 0.0103882 | 0.1367423 | 1              | FALSE      |                 0 | rf\_Jun                         | clean | FALSE       |
+| rf\_Mar                           | TRUE     | 0.0213425 | 0.0329356 | 1              | FALSE      |                 0 | rf\_Mar                         | clean | FALSE       |
+| rf\_max                           | TRUE     | 0.0395141 | 0.0037063 | 1              | FALSE      |                 0 | rf\_max                         | clean | FALSE       |
+| rf\_May                           | TRUE     | 0.0112669 | 0.1212165 | 1              | FALSE      |                 0 | rf\_May                         | clean | FALSE       |
+| rf\_mean                          | TRUE     | 0.0332824 | 0.0077338 | 1              | FALSE      |                 0 | rf\_mean                        | clean | FALSE       |
+| rf\_min                           | TRUE     | 0.0160290 | 0.0645455 | 1              | FALSE      |                 0 | rf\_min                         | clean | FALSE       |
+| rf\_Nov                           | TRUE     | 0.0237989 | 0.0243052 | 1              | FALSE      |                 0 | rf\_Nov                         | clean | FALSE       |
+| rf\_Oct                           | TRUE     | 0.0189729 | 0.0443275 | 1              | FALSE      |                 0 | rf\_Oct                         | clean | FALSE       |
+| rf\_Sep                           | TRUE     | 0.0147422 | 0.0762869 | 1              | FALSE      |                 0 | rf\_Sep                         | clean | FALSE       |
+| sh\_Apr                           | TRUE     | 0.0058000 | 0.2661937 | 1              | FALSE      |                 0 | sh\_Apr                         | clean | FALSE       |
+| sh\_Aug                           | TRUE     | 0.0001881 | 0.8412831 | 1              | FALSE      |                 0 | sh\_Aug                         | clean | FALSE       |
+| sh\_Dec                           | TRUE     | 0.0083039 | 0.1833854 | 1              | FALSE      |                 0 | sh\_Dec                         | clean | FALSE       |
+| sh\_Feb                           | TRUE     | 0.0095947 | 0.1526979 | 1              | FALSE      |                 0 | sh\_Feb                         | clean | FALSE       |
+| sh\_Jan                           | TRUE     | 0.0100881 | 0.1425452 | 1              | FALSE      |                 0 | sh\_Jan                         | clean | FALSE       |
+| sh\_Jul                           | TRUE     | 0.0000316 | 0.9345519 | 1              | FALSE      |                 0 | sh\_Jul                         | clean | FALSE       |
+| sh\_Jun                           | TRUE     | 0.0011408 | 0.6219351 | 1              | FALSE      |                 0 | sh\_Jun                         | clean | FALSE       |
+| sh\_Mar                           | TRUE     | 0.0082526 | 0.1847463 | 1              | FALSE      |                 0 | sh\_Mar                         | clean | FALSE       |
+| sh\_max                           | TRUE     | 0.0094041 | 0.1568354 | 1              | FALSE      |                 0 | sh\_max                         | clean | FALSE       |
+| sh\_May                           | TRUE     | 0.0022717 | 0.4865191 | 1              | FALSE      |                 0 | sh\_May                         | clean | FALSE       |
+| sh\_mean                          | TRUE     | 0.0040270 | 0.3541978 | 1              | FALSE      |                 0 | sh\_mean                        | clean | FALSE       |
+| sh\_min                           | TRUE     | 0.0002221 | 0.8277546 | 1              | FALSE      |                 0 | sh\_min                         | clean | FALSE       |
+| sh\_Nov                           | TRUE     | 0.0048551 | 0.3090180 | 1              | FALSE      |                 0 | sh\_Nov                         | clean | FALSE       |
+| sh\_Oct                           | TRUE     | 0.0023373 | 0.4802944 | 1              | FALSE      |                 0 | sh\_Oct                         | clean | FALSE       |
+| sh\_Sep                           | TRUE     | 0.0000004 | 0.9931032 | 1              | FALSE      |                 0 | sh\_Sep                         | clean | FALSE       |
+| sm\_Apr                           | TRUE     | 0.0394358 | 0.0037405 | 1              | FALSE      |                 0 | sm\_Apr                         | clean | FALSE       |
+| sm\_Aug                           | TRUE     | 0.0261838 | 0.0181558 | 1              | FALSE      |                 0 | sm\_Aug                         | clean | FALSE       |
+| sm\_Dec                           | TRUE     | 0.0465962 | 0.0016244 | 1              | FALSE      |                 0 | sm\_Dec                         | clean | TRUE        |
+| sm\_Feb                           | TRUE     | 0.0326945 | 0.0082943 | 1              | FALSE      |                 0 | sm\_Feb                         | clean | FALSE       |
+| sm\_Jan                           | TRUE     | 0.0412570 | 0.0030224 | 1              | FALSE      |                 0 | sm\_Jan                         | clean | TRUE        |
+| sm\_Jul                           | TRUE     | 0.0355494 | 0.0059108 | 1              | FALSE      |                 0 | sm\_Jul                         | clean | FALSE       |
+| sm\_Jun                           | TRUE     | 0.0393998 | 0.0037563 | 1              | FALSE      |                 0 | sm\_Jun                         | clean | FALSE       |
+| sm\_Mar                           | TRUE     | 0.0351434 | 0.0062016 | 1              | FALSE      |                 0 | sm\_Mar                         | clean | FALSE       |
+| sm\_max                           | TRUE     | 0.0441897 | 0.0021475 | 1              | FALSE      |                 0 | sm\_max                         | clean | TRUE        |
+| sm\_May                           | TRUE     | 0.0431239 | 0.0024310 | 1              | FALSE      |                 0 | sm\_May                         | clean | TRUE        |
+| sm\_mean                          | TRUE     | 0.0441897 | 0.0021475 | 1              | FALSE      |                 0 | sm\_mean                        | clean | TRUE        |
+| sm\_min                           | TRUE     | 0.0449894 | 0.0019570 | 1              | FALSE      |                 0 | sm\_min                         | clean | TRUE        |
+| sm\_Nov                           | TRUE     | 0.0472136 | 0.0015123 | 1              | FALSE      |                 0 | sm\_Nov                         | clean | TRUE        |
+| sm\_Oct                           | TRUE     | 0.0374435 | 0.0047269 | 1              | FALSE      |                 0 | sm\_Oct                         | clean | FALSE       |
+| sm\_Sep                           | TRUE     | 0.0252210 | 0.0204177 | 1              | FALSE      |                 0 | sm\_Sep                         | clean | FALSE       |
+| tair\_Apr                         | TRUE     | 0.0034900 | 0.3884185 | 1              | FALSE      |                 0 | tair\_Apr                       | clean | FALSE       |
+| tair\_Aug                         | TRUE     | 0.0411488 | 0.0030609 | 1              | FALSE      |                 0 | tair\_Aug                       | clean | TRUE        |
+| tair\_Dec                         | TRUE     | 0.0001394 | 0.8631470 | 1              | FALSE      |                 0 | tair\_Dec                       | clean | FALSE       |
+| tair\_Feb                         | TRUE     | 0.0000987 | 0.8846933 | 1              | FALSE      |                 0 | tair\_Feb                       | clean | FALSE       |
+| tair\_Jan                         | TRUE     | 0.0000294 | 0.9368561 | 1              | FALSE      |                 0 | tair\_Jan                       | clean | FALSE       |
+| tair\_Jul                         | TRUE     | 0.0448968 | 0.0019781 | 1              | FALSE      |                 0 | tair\_Jul                       | clean | TRUE        |
+| tair\_Jun                         | TRUE     | 0.0373683 | 0.0047690 | 1              | FALSE      |                 0 | tair\_Jun                       | clean | FALSE       |
+| tair\_Mar                         | TRUE     | 0.0008151 | 0.6768160 | 1              | FALSE      |                 0 | tair\_Mar                       | clean | FALSE       |
+| tair\_max                         | TRUE     | 0.0094041 | 0.1568354 | 1              | FALSE      |                 0 | tair\_max                       | clean | FALSE       |
+| tair\_May                         | TRUE     | 0.0196449 | 0.0407283 | 1              | FALSE      |                 0 | tair\_May                       | clean | FALSE       |
+| tair\_mean                        | TRUE     | 0.0040270 | 0.3541978 | 1              | FALSE      |                 0 | tair\_mean                      | clean | FALSE       |
+| tair\_min                         | TRUE     | 0.0002221 | 0.8277546 | 1              | FALSE      |                 0 | tair\_min                       | clean | FALSE       |
+| tair\_Nov                         | TRUE     | 0.0016221 | 0.5565265 | 1              | FALSE      |                 0 | tair\_Nov                       | clean | FALSE       |
+| tair\_Oct                         | TRUE     | 0.0087202 | 0.1727735 | 1              | FALSE      |                 0 | tair\_Oct                       | clean | FALSE       |
+| tair\_Sep                         | TRUE     | 0.0276833 | 0.0151352 | 1              | FALSE      |                 0 | tair\_Sep                       | clean | FALSE       |
+| X13\_1\_AdultHeadBodyLen\_mm      | TRUE     | 0.0001071 | 0.8798780 | 1              | FALSE      |                 0 | X13.1\_AdultHeadBodyLen\_mm     | clean | FALSE       |
+| X15\_1\_LitterSize                | TRUE     | 0.0001159 | 0.8751180 | 1              | FALSE      |                 0 | X15.1\_LitterSize               | clean | FALSE       |
+| X16\_1\_LittersPerYear            | TRUE     | 0.0008651 | 0.6676141 | 1              | FALSE      |                 0 | X16.1\_LittersPerYear           | clean | FALSE       |
+| X18\_1\_BasalMetRate\_mLO2hr      | TRUE     | 0.0011283 | 0.6238503 | 1              | FALSE      |                 0 | X18.1\_BasalMetRate\_mLO2hr     | clean | FALSE       |
+| X2\_1\_AgeatEyeOpening\_d         | TRUE     | 0.0015008 | 0.5716699 | 1              | FALSE      |                 0 | X2.1\_AgeatEyeOpening\_d        | clean | FALSE       |
+| X21\_1\_PopulationDensity\_n\_km2 | TRUE     | 0.0000140 | 0.9564951 | 1              | FALSE      |                 0 | X21.1\_PopulationDensity\_n.km2 | clean | FALSE       |
+| X22\_1\_HomeRange\_km2            | TRUE     | 0.0080582 | 0.1900031 | 1              | FALSE      |                 0 | X22.1\_HomeRange\_km2           | clean | FALSE       |
+| X23\_1\_SexualMaturityAge\_d      | TRUE     | 0.0089999 | 0.1660425 | 1              | FALSE      |                 0 | X23.1\_SexualMaturityAge\_d     | clean | FALSE       |
+| X24\_1\_TeatNumber                | TRUE     | 0.0016360 | 0.5548397 | 1              | FALSE      |                 0 | X24.1\_TeatNumber               | clean | FALSE       |
+| X25\_1\_WeaningAge\_d             | TRUE     | 0.0002686 | 0.8109056 | 1              | FALSE      |                 0 | X25.1\_WeaningAge\_d            | clean | FALSE       |
+| X26\_1\_GR\_Area\_km2             | TRUE     | 0.0022071 | 0.4927855 | 1              | FALSE      |                 0 | X26.1\_GR\_Area\_km2            | clean | FALSE       |
+| X5\_1\_AdultBodyMass\_g           | TRUE     | 0.0124104 | 0.1038588 | 1              | FALSE      |                 0 | X5.1\_AdultBodyMass\_g          | clean | FALSE       |
+| X5\_3\_NeonateBodyMass\_g         | TRUE     | 0.0018871 | 0.5259373 | 1              | FALSE      |                 0 | X5.3\_NeonateBodyMass\_g        | clean | FALSE       |
+| X9\_1\_GestationLen\_d            | TRUE     | 0.0100200 | 0.1438993 | 1              | FALSE      |                 0 | X9.1\_GestationLen\_d           | clean | FALSE       |
+| lst\_Apr                          | TRUE     | 0.0206883 | 0.0413035 | 2              | FALSE      |                 0 | lst\_Apr                        | clean | FALSE       |
+| lst\_Aug                          | TRUE     | 0.0397891 | 0.0046582 | 2              | FALSE      |                 0 | lst\_Aug                        | clean | FALSE       |
+| lst\_Dec                          | TRUE     | 0.0019320 | 0.5329184 | 2              | FALSE      |                 0 | lst\_Dec                        | clean | FALSE       |
+| lst\_Feb                          | TRUE     | 0.0028142 | 0.4517077 | 2              | FALSE      |                 0 | lst\_Feb                        | clean | FALSE       |
+| lst\_Jan                          | TRUE     | 0.0020936 | 0.5162703 | 2              | FALSE      |                 0 | lst\_Jan                        | clean | FALSE       |
+| lst\_Jul                          | TRUE     | 0.0413608 | 0.0039127 | 2              | FALSE      |                 0 | lst\_Jul                        | clean | FALSE       |
+| lst\_Jun                          | TRUE     | 0.0419111 | 0.0036814 | 2              | FALSE      |                 0 | lst\_Jun                        | clean | FALSE       |
+| lst\_Mar                          | TRUE     | 0.0074788 | 0.2198861 | 2              | FALSE      |                 0 | lst\_Mar                        | clean | FALSE       |
+| lst\_max                          | TRUE     | 0.0399434 | 0.0045790 | 2              | FALSE      |                 0 | lst\_max                        | clean | FALSE       |
+| lst\_May                          | TRUE     | 0.0394073 | 0.0048602 | 2              | FALSE      |                 0 | lst\_May                        | clean | FALSE       |
+| lst\_mean                         | TRUE     | 0.0225446 | 0.0331675 | 2              | FALSE      |                 0 | lst\_mean                       | clean | FALSE       |
+| lst\_min                          | TRUE     | 0.0073861 | 0.2227663 | 2              | FALSE      |                 0 | lst\_min                        | clean | FALSE       |
+| lst\_Nov                          | TRUE     | 0.0054489 | 0.2950147 | 2              | FALSE      |                 0 | lst\_Nov                        | clean | FALSE       |
+| lst\_Oct                          | TRUE     | 0.0194724 | 0.0477483 | 2              | FALSE      |                 0 | lst\_Oct                        | clean | FALSE       |
+| lst\_Sep                          | TRUE     | 0.0364527 | 0.0067583 | 2              | FALSE      |                 0 | lst\_Sep                        | clean | FALSE       |
+| random\_lev\_x\_0                 | TRUE     | 0.0050742 | 0.3122368 | 2              | FALSE      |                 0 | random                          | lev   | FALSE       |
+| random\_lev\_x\_1                 | TRUE     | 0.0050742 | 0.3122368 | 2              | FALSE      |                 0 | random                          | lev   | FALSE       |
+| rf\_Apr                           | TRUE     | 0.0098394 | 0.1593714 | 2              | FALSE      |                 0 | rf\_Apr                         | clean | FALSE       |
+| rf\_Aug                           | TRUE     | 0.0050388 | 0.3139311 | 2              | FALSE      |                 0 | rf\_Aug                         | clean | FALSE       |
+| rf\_Dec                           | TRUE     | 0.0135993 | 0.0980569 | 2              | FALSE      |                 0 | rf\_Dec                         | clean | FALSE       |
+| rf\_Feb                           | TRUE     | 0.0105762 | 0.1445850 | 2              | FALSE      |                 0 | rf\_Feb                         | clean | FALSE       |
+| rf\_Jan                           | TRUE     | 0.0122990 | 0.1156564 | 2              | FALSE      |                 0 | rf\_Jan                         | clean | FALSE       |
+| rf\_Jul                           | TRUE     | 0.0066195 | 0.2484176 | 2              | FALSE      |                 0 | rf\_Jul                         | clean | FALSE       |
+| rf\_Jun                           | TRUE     | 0.0033232 | 0.4134739 | 2              | FALSE      |                 0 | rf\_Jun                         | clean | FALSE       |
+| rf\_Mar                           | TRUE     | 0.0113223 | 0.1311693 | 2              | FALSE      |                 0 | rf\_Mar                         | clean | FALSE       |
+| rf\_max                           | TRUE     | 0.0189211 | 0.0510122 | 2              | FALSE      |                 0 | rf\_max                         | clean | FALSE       |
+| rf\_May                           | TRUE     | 0.0048345 | 0.3239457 | 2              | FALSE      |                 0 | rf\_May                         | clean | FALSE       |
+| rf\_mean                          | TRUE     | 0.0140067 | 0.0931629 | 2              | FALSE      |                 0 | rf\_mean                        | clean | FALSE       |
+| rf\_min                           | TRUE     | 0.0043483 | 0.3495486 | 2              | FALSE      |                 0 | rf\_min                         | clean | FALSE       |
+| rf\_Nov                           | TRUE     | 0.0100221 | 0.1555514 | 2              | FALSE      |                 0 | rf\_Nov                         | clean | FALSE       |
+| rf\_Oct                           | TRUE     | 0.0083423 | 0.1950725 | 2              | FALSE      |                 0 | rf\_Oct                         | clean | FALSE       |
+| rf\_Sep                           | TRUE     | 0.0051926 | 0.3066574 | 2              | FALSE      |                 0 | rf\_Sep                         | clean | FALSE       |
+| sh\_Apr                           | TRUE     | 0.0052704 | 0.3030634 | 2              | FALSE      |                 0 | sh\_Apr                         | clean | FALSE       |
+| sh\_Aug                           | TRUE     | 0.0041759 | 0.3592839 | 2              | FALSE      |                 0 | sh\_Aug                         | clean | FALSE       |
+| sh\_Dec                           | TRUE     | 0.0053804 | 0.2980690 | 2              | FALSE      |                 0 | sh\_Dec                         | clean | FALSE       |
+| sh\_Feb                           | TRUE     | 0.0077783 | 0.2108770 | 2              | FALSE      |                 0 | sh\_Feb                         | clean | FALSE       |
+| sh\_Jan                           | TRUE     | 0.0068993 | 0.2386593 | 2              | FALSE      |                 0 | sh\_Jan                         | clean | FALSE       |
+| sh\_Jul                           | TRUE     | 0.0019675 | 0.5291847 | 2              | FALSE      |                 0 | sh\_Jul                         | clean | FALSE       |
+| sh\_Jun                           | TRUE     | 0.0000524 | 0.9182401 | 2              | FALSE      |                 0 | sh\_Jun                         | clean | FALSE       |
+| sh\_Mar                           | TRUE     | 0.0077192 | 0.2126207 | 2              | FALSE      |                 0 | sh\_Mar                         | clean | FALSE       |
+| sh\_max                           | TRUE     | 0.0042919 | 0.3526917 | 2              | FALSE      |                 0 | sh\_max                         | clean | FALSE       |
+| sh\_May                           | TRUE     | 0.0007068 | 0.7060624 | 2              | FALSE      |                 0 | sh\_May                         | clean | FALSE       |
+| sh\_mean                          | TRUE     | 0.0013820 | 0.5979349 | 2              | FALSE      |                 0 | sh\_mean                        | clean | FALSE       |
+| sh\_min                           | TRUE     | 0.0000762 | 0.9014346 | 2              | FALSE      |                 0 | sh\_min                         | clean | FALSE       |
+| sh\_Nov                           | TRUE     | 0.0029322 | 0.4423747 | 2              | FALSE      |                 0 | sh\_Nov                         | clean | FALSE       |
+| sh\_Oct                           | TRUE     | 0.0003901 | 0.7793243 | 2              | FALSE      |                 0 | sh\_Oct                         | clean | FALSE       |
+| sh\_Sep                           | TRUE     | 0.0018810 | 0.5383750 | 2              | FALSE      |                 0 | sh\_Sep                         | clean | FALSE       |
+| sm\_Apr                           | TRUE     | 0.0288041 | 0.0160550 | 2              | FALSE      |                 0 | sm\_Apr                         | clean | FALSE       |
+| sm\_Aug                           | TRUE     | 0.0111583 | 0.1339932 | 2              | FALSE      |                 0 | sm\_Aug                         | clean | FALSE       |
+| sm\_Dec                           | TRUE     | 0.0196533 | 0.0467260 | 2              | FALSE      |                 0 | sm\_Dec                         | clean | FALSE       |
+| sm\_Feb                           | TRUE     | 0.0124423 | 0.1135568 | 2              | FALSE      |                 0 | sm\_Feb                         | clean | FALSE       |
+| sm\_Jan                           | TRUE     | 0.0142195 | 0.0907125 | 2              | FALSE      |                 0 | sm\_Jan                         | clean | FALSE       |
+| sm\_Jul                           | TRUE     | 0.0172945 | 0.0620950 | 2              | FALSE      |                 0 | sm\_Jul                         | clean | FALSE       |
+| sm\_Jun                           | TRUE     | 0.0213171 | 0.0383357 | 2              | FALSE      |                 0 | sm\_Jun                         | clean | FALSE       |
+| sm\_Mar                           | TRUE     | 0.0187477 | 0.0520868 | 2              | FALSE      |                 0 | sm\_Mar                         | clean | FALSE       |
+| sm\_max                           | TRUE     | 0.0189787 | 0.0506605 | 2              | FALSE      |                 0 | sm\_max                         | clean | FALSE       |
+| sm\_May                           | TRUE     | 0.0293821 | 0.0150283 | 2              | FALSE      |                 0 | sm\_May                         | clean | FALSE       |
+| sm\_mean                          | TRUE     | 0.0189787 | 0.0506605 | 2              | FALSE      |                 0 | sm\_mean                        | clean | FALSE       |
+| sm\_min                           | TRUE     | 0.0252995 | 0.0240428 | 2              | FALSE      |                 0 | sm\_min                         | clean | FALSE       |
+| sm\_Nov                           | TRUE     | 0.0264202 | 0.0211173 | 2              | FALSE      |                 0 | sm\_Nov                         | clean | FALSE       |
+| sm\_Oct                           | TRUE     | 0.0200305 | 0.0446674 | 2              | FALSE      |                 0 | sm\_Oct                         | clean | FALSE       |
+| sm\_Sep                           | TRUE     | 0.0108628 | 0.1392584 | 2              | FALSE      |                 0 | sm\_Sep                         | clean | FALSE       |
+| tair\_Apr                         | TRUE     | 0.0070146 | 0.2347752 | 2              | FALSE      |                 0 | tair\_Apr                       | clean | FALSE       |
+| tair\_Aug                         | TRUE     | 0.0579105 | 0.0006405 | 2              | FALSE      |                 0 | tair\_Aug                       | clean | TRUE        |
+| tair\_Dec                         | TRUE     | 0.0014852 | 0.5845808 | 2              | FALSE      |                 0 | tair\_Dec                       | clean | FALSE       |
+| tair\_Feb                         | TRUE     | 0.0010837 | 0.6404950 | 2              | FALSE      |                 0 | tair\_Feb                       | clean | FALSE       |
+| tair\_Jan                         | TRUE     | 0.0010774 | 0.6414746 | 2              | FALSE      |                 0 | tair\_Jan                       | clean | FALSE       |
+| tair\_Jul                         | TRUE     | 0.0604784 | 0.0004853 | 2              | FALSE      |                 0 | tair\_Jul                       | clean | TRUE        |
+| tair\_Jun                         | TRUE     | 0.0520731 | 0.0012069 | 2              | FALSE      |                 0 | tair\_Jun                       | clean | TRUE        |
+| tair\_Mar                         | TRUE     | 0.0026206 | 0.4677013 | 2              | FALSE      |                 0 | tair\_Mar                       | clean | FALSE       |
+| tair\_max                         | TRUE     | 0.0042919 | 0.3526917 | 2              | FALSE      |                 0 | tair\_max                       | clean | FALSE       |
+| tair\_May                         | TRUE     | 0.0289350 | 0.0158164 | 2              | FALSE      |                 0 | tair\_May                       | clean | FALSE       |
+| tair\_mean                        | TRUE     | 0.0013820 | 0.5979349 | 2              | FALSE      |                 0 | tair\_mean                      | clean | FALSE       |
+| tair\_min                         | TRUE     | 0.0000762 | 0.9014346 | 2              | FALSE      |                 0 | tair\_min                       | clean | FALSE       |
+| tair\_Nov                         | TRUE     | 0.0050534 | 0.3132308 | 2              | FALSE      |                 0 | tair\_Nov                       | clean | FALSE       |
+| tair\_Oct                         | TRUE     | 0.0158889 | 0.0737445 | 2              | FALSE      |                 0 | tair\_Oct                       | clean | FALSE       |
+| tair\_Sep                         | TRUE     | 0.0403401 | 0.0043817 | 2              | FALSE      |                 0 | tair\_Sep                       | clean | FALSE       |
+| X13\_1\_AdultHeadBodyLen\_mm      | TRUE     | 0.0003950 | 0.7779933 | 2              | FALSE      |                 0 | X13.1\_AdultHeadBodyLen\_mm     | clean | FALSE       |
+| X15\_1\_LitterSize                | TRUE     | 0.0044047 | 0.3464413 | 2              | FALSE      |                 0 | X15.1\_LitterSize               | clean | FALSE       |
+| X16\_1\_LittersPerYear            | TRUE     | 0.0000208 | 0.9484604 | 2              | FALSE      |                 0 | X16.1\_LittersPerYear           | clean | FALSE       |
+| X18\_1\_BasalMetRate\_mLO2hr      | TRUE     | 0.0003223 | 0.7989647 | 2              | FALSE      |                 0 | X18.1\_BasalMetRate\_mLO2hr     | clean | FALSE       |
+| X2\_1\_AgeatEyeOpening\_d         | TRUE     | 0.0000070 | 0.9700990 | 2              | FALSE      |                 0 | X2.1\_AgeatEyeOpening\_d        | clean | FALSE       |
+| X21\_1\_PopulationDensity\_n\_km2 | TRUE     | 0.0000168 | 0.9536315 | 2              | FALSE      |                 0 | X21.1\_PopulationDensity\_n.km2 | clean | FALSE       |
+| X22\_1\_HomeRange\_km2            | TRUE     | 0.0029454 | 0.4413508 | 2              | FALSE      |                 0 | X22.1\_HomeRange\_km2           | clean | FALSE       |
+| X23\_1\_SexualMaturityAge\_d      | TRUE     | 0.0092543 | 0.1723444 | 2              | FALSE      |                 0 | X23.1\_SexualMaturityAge\_d     | clean | FALSE       |
+| X24\_1\_TeatNumber                | TRUE     | 0.0025667 | 0.4723156 | 2              | FALSE      |                 0 | X24.1\_TeatNumber               | clean | FALSE       |
+| X25\_1\_WeaningAge\_d             | TRUE     | 0.0048898 | 0.3211957 | 2              | FALSE      |                 0 | X25.1\_WeaningAge\_d            | clean | FALSE       |
+| X26\_1\_GR\_Area\_km2             | TRUE     | 0.0004432 | 0.7652024 | 2              | FALSE      |                 0 | X26.1\_GR\_Area\_km2            | clean | FALSE       |
+| X5\_1\_AdultBodyMass\_g           | TRUE     | 0.0086798 | 0.1862780 | 2              | FALSE      |                 0 | X5.1\_AdultBodyMass\_g          | clean | FALSE       |
+| X5\_3\_NeonateBodyMass\_g         | TRUE     | 0.0003439 | 0.7925048 | 2              | FALSE      |                 0 | X5.3\_NeonateBodyMass\_g        | clean | FALSE       |
+| X9\_1\_GestationLen\_d            | TRUE     | 0.0119302 | 0.1212609 | 2              | FALSE      |                 0 | X9.1\_GestationLen\_d           | clean | FALSE       |
+| X0\_random\_catB                  | TRUE     | 0.0032915 | 0.5873091 | 0              | TRUE       |                 1 | random                          | catB  | FALSE       |
+| X1\_random\_catB                  | TRUE     | 0.0264854 | 0.0175018 | 1              | TRUE       |                 1 | random                          | catB  | FALSE       |
+| X2\_random\_catB                  | TRUE     | 0.0026529 | 0.4649723 | 2              | TRUE       |                 1 | random                          | catB  | FALSE       |
+
+\#\#examining
+variables
+
+``` r
+good_new_variables = unique(score_frame[score_frame[['recommended']], 'varName', drop = TRUE])
+good_new_variables
+```
+
+    ##  [1] "lst_Aug"  "lst_Jul"  "lst_Jun"  "lst_max"  "lst_May"  "lst_Sep" 
+    ##  [7] "sm_Dec"   "sm_Jan"   "sm_max"   "sm_May"   "sm_mean"  "sm_min"  
+    ## [13] "sm_Nov"   "tair_Aug" "tair_Jul" "tair_Jun"
+
+\#\#\#Using the Prepared Data in a Model
+
+``` r
+d_prepared %.>%
+  head(.) %.>%
+  knitr::kable(.)
+```
+
+| X5\_1\_AdultBodyMass\_g | X13\_1\_AdultHeadBodyLen\_mm | X2\_1\_AgeatEyeOpening\_d | X18\_1\_BasalMetRate\_mLO2hr | X9\_1\_GestationLen\_d | X22\_1\_HomeRange\_km2 | X15\_1\_LitterSize | X16\_1\_LittersPerYear | X5\_3\_NeonateBodyMass\_g | X21\_1\_PopulationDensity\_n\_km2 | X23\_1\_SexualMaturityAge\_d | X24\_1\_TeatNumber | X25\_1\_WeaningAge\_d | X26\_1\_GR\_Area\_km2 |    rf\_Jan |    rf\_Feb |    rf\_Mar |    rf\_Apr |   rf\_May |   rf\_Jun |   rf\_Jul |   rf\_Aug |   rf\_Sep |    rf\_Oct |    rf\_Nov |    rf\_Dec |   rf\_min |    rf\_max |  rf\_mean | lst\_Jan | lst\_Feb | lst\_Mar | lst\_Apr |  lst\_May |  lst\_Jun |  lst\_Jul | lst\_Aug | lst\_Sep | lst\_Oct | lst\_Nov | lst\_Dec |  lst\_min | lst\_max | lst\_mean |   sh\_Jan |   sh\_Feb |   sh\_Mar |   sh\_Apr |   sh\_May |   sh\_Jun |   sh\_Jul |   sh\_Aug |   sh\_Sep |   sh\_Oct |   sh\_Nov |   sh\_Dec |   sh\_min |   sh\_max |  sh\_mean | tair\_Jan | tair\_Feb | tair\_Mar | tair\_Apr | tair\_May | tair\_Jun | tair\_Jul | tair\_Aug | tair\_Sep | tair\_Oct | tair\_Nov | tair\_Dec | tair\_min | tair\_max | tair\_mean |  sm\_Jan |  sm\_Feb |  sm\_Mar |   sm\_Apr |   sm\_May |   sm\_Jun |   sm\_Jul |   sm\_Aug |  sm\_Sep |   sm\_Oct |  sm\_Nov |  sm\_Dec |   sm\_min |  sm\_max | sm\_mean | random\_lev\_x\_0 | random\_lev\_x\_1 | X0\_random\_catB | X1\_random\_catB | X2\_random\_catB | transmission.mode.to.humans.simplified.numeric |
+| ----------------------: | ---------------------------: | ------------------------: | ---------------------------: | ---------------------: | ---------------------: | -----------------: | ---------------------: | ------------------------: | --------------------------------: | ---------------------------: | -----------------: | --------------------: | --------------------: | ---------: | ---------: | ---------: | ---------: | --------: | --------: | --------: | --------: | --------: | ---------: | ---------: | ---------: | --------: | ---------: | --------: | -------: | -------: | -------: | -------: | --------: | --------: | --------: | -------: | -------: | -------: | -------: | -------: | --------: | -------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | ---------: | -------: | -------: | -------: | --------: | --------: | --------: | --------: | --------: | -------: | --------: | -------: | -------: | --------: | -------: | -------: | ----------------: | ----------------: | ---------------: | ---------------: | ---------------: | :--------------------------------------------- |
+|                   24.52 |                      96.6900 |                   17.5442 |                      49.1900 |                21.7695 |              0.0004480 |             5.3400 |                 2.0000 |                    1.8463 |                         3211.8100 |                     170.3800 |               7.59 |               26.2705 |              915499.4 |  28.310821 |  27.723485 |  34.271434 |  44.128143 | 66.951189 | 73.531295 | 62.098096 | 56.526708 | 38.720682 |  37.599996 |  31.717838 |  30.775334 | 27.723485 |  73.531295 | 44.362918 | 28.58598 | 26.91947 | 21.58503 | 14.88231 |  8.715245 |  4.515011 |  4.111697 |  7.13683 | 13.47646 | 19.46592 | 24.45991 | 27.37648 |  4.111697 | 28.58598 |  16.76919 |  5.519149 |  5.697453 |  5.384407 |  4.884469 |  4.573697 |  4.114451 |  3.908027 |  3.987334 |  4.174561 |  4.407915 |  4.648671 |  5.110917 |  3.908027 |  5.697453 |  4.715466 |  14.55520 |  14.29700 |  12.01976 |  8.640507 |  5.501658 |  3.103671 |  2.341873 |  3.339478 |  5.492649 |  8.108782 |  10.47671 |  12.99943 |  3.908027 |  5.697453 |   4.715466 | 19.20338 | 19.71329 | 20.81875 | 23.668562 | 27.048926 | 30.571245 | 32.505922 | 32.318945 | 29.18584 | 26.112100 | 23.00708 | 20.54002 | 19.203377 | 32.50592 | 32.50592 |                 1 |                 0 |        0.6748939 |      \-0.2331342 |        0.3597352 | 2                                              |
+|                   41.16 |                     129.4835 |                    7.0000 |                      76.1088 |                38.5400 |              0.0008800 |             2.4300 |                 7.6000 |                    5.4900 |                         2366.2200 |                      51.9000 |               4.18 |               14.0000 |              953090.6 |   4.510398 |   3.396998 |   3.547269 |   2.721337 |  2.963665 |  2.755717 |  6.731563 |  8.487593 |  4.313338 |   3.907098 |   3.367504 |   4.490426 |  2.721337 |   8.487593 |  4.266076 | 25.75200 | 29.26015 | 35.01957 | 40.49921 | 44.582051 | 46.638938 | 47.327528 | 46.90289 | 44.99456 | 40.54782 | 33.31473 | 27.11571 | 25.751995 | 47.32753 |  38.49626 |  4.819705 |  4.650600 |  4.639783 |  5.025986 |  5.687618 |  6.390770 |  7.443556 |  8.229801 |  7.735112 |  7.196746 |  6.246359 |  5.440028 |  4.639783 |  8.229801 |  6.169689 |  14.19034 |  16.27666 |  19.87423 | 23.910294 | 27.308270 | 29.832780 | 30.879108 | 30.803490 | 28.964620 | 24.924336 |  19.56829 |  15.45807 |  4.639783 |  8.229801 |   6.169689 | 11.97160 | 11.69213 | 10.63167 |  9.701764 |  9.165511 |  8.604463 |  8.525281 |  9.336274 |  9.47305 |  9.786980 | 10.23573 | 11.49168 |  8.525281 | 11.97160 | 11.97160 |                 1 |                 0 |        0.3848490 |      \-0.2331342 |      \-0.1589385 | 0                                              |
+|                 2829.50 |                     565.7687 |                    0.0000 |                    1877.3555 |               110.5333 |              0.5412771 |             1.6137 |                 1.8908 |                  336.6737 |                           24.1184 |                     510.6760 |               6.08 |              136.5090 |             3325550.3 |   9.223750 |   7.489283 |   9.085730 |   5.617738 |  3.017250 |  2.104062 |  3.043558 |  3.949642 |  1.332755 |   2.356264 |   5.221854 |   6.813192 |  1.332755 |   9.223750 |  4.937923 | 28.20398 | 31.71826 | 37.33633 | 42.43161 | 46.645516 | 47.704967 | 46.985238 | 47.39723 | 46.89395 | 43.18612 | 35.90956 | 29.86042 | 28.203976 | 47.70497 |  40.35610 |  6.147237 |  5.987151 |  6.266517 |  6.904232 |  7.377973 |  7.646688 |  9.260465 |  9.985638 |  8.643908 |  7.293791 |  7.128724 |  6.350327 |  5.987151 |  9.985638 |  7.497532 |  16.18861 |  18.27081 |  21.73687 | 25.760599 | 29.605409 | 31.741909 | 32.193576 | 31.913751 | 29.885090 | 26.095114 |  21.20912 |  17.52866 |  5.987151 |  9.985638 |   7.497532 | 15.04361 | 14.50310 | 13.30863 | 13.230848 | 11.948826 | 10.280960 | 10.029693 | 10.905736 | 10.26370 |  9.867668 | 11.96622 | 14.50156 |  9.867668 | 15.04361 | 15.04361 |                 1 |                 0 |        0.6748939 |      \-0.5471267 |      \-0.1589385 | 1                                              |
+|                   25.27 |                      93.6229 |                   13.8374 |                      39.9500 |                23.0000 |              0.0023669 |             4.5900 |                 1.2500 |                    1.7304 |                         7679.6500 |                      61.8700 |               7.55 |               14.4400 |             1071237.3 | 113.840458 | 119.704953 | 119.125311 | 115.958810 | 74.882904 | 54.659143 | 52.513019 | 53.435588 | 73.488271 | 113.645333 | 112.256458 | 114.586686 | 52.513019 | 119.704953 | 93.174745 | 32.98679 | 30.13573 | 27.26056 | 22.74485 | 17.386291 | 13.650089 | 13.346165 | 17.01557 | 21.81574 | 26.24403 | 30.73434 | 32.93935 | 13.346165 | 32.98679 |  23.85496 | 11.176039 | 11.609481 | 10.880545 |  9.343283 |  7.918394 |  6.836218 |  6.434379 |  6.820314 |  7.294557 |  8.801712 |  9.283485 | 10.189930 |  6.434379 | 11.609481 |  8.902300 |  24.82721 |  23.91221 |  21.56786 | 17.855692 | 14.026568 | 11.821396 | 11.156670 | 13.045397 | 14.807975 | 17.832505 |  20.45378 |  23.23807 |  6.434379 | 11.609481 |   8.902300 | 23.39150 | 24.66699 | 25.33715 | 26.702064 | 27.235136 | 27.674811 | 28.021763 | 27.513391 | 27.45799 | 27.838227 | 26.03877 | 23.78591 | 23.391504 | 28.02176 | 28.02176 |                 0 |                 1 |      \-1.6135515 |        0.5674512 |        0.1161138 | 1                                              |
+|                   39.84 |                     105.0425 |                   13.9150 |                      53.1377 |                24.2746 |              0.0021985 |             3.4965 |                 2.7275 |                    2.3447 |                          442.8800 |                      77.6343 |               5.71 |               25.0823 |             1450284.1 | 181.927028 | 123.563358 | 135.822533 |  81.411104 | 61.068214 | 48.565488 | 43.472220 | 36.218955 | 56.636942 |  86.888544 | 149.816904 | 187.424542 | 36.218955 | 187.424542 | 99.401319 | 29.61312 | 29.24225 | 28.35204 | 26.91959 | 24.690873 | 23.383038 | 23.455310 | 25.92489 | 29.11978 | 31.58378 | 30.93892 | 30.17739 | 23.383038 | 31.58378 |  27.78342 | 15.253551 | 15.218111 | 15.186534 | 14.176742 | 12.446706 | 11.593683 | 10.802654 | 10.620593 | 11.371256 | 12.774451 | 14.129207 | 15.028975 | 10.620593 | 15.253551 | 13.176901 |  22.86748 |  23.01250 |  22.52131 | 21.427845 | 19.457962 | 18.554038 | 18.198185 | 19.240473 | 20.652976 | 21.977138 |  22.03052 |  22.68594 | 10.620593 | 15.253551 |  13.176901 | 30.59439 | 29.52644 | 29.84110 | 28.553504 | 26.579101 | 25.007858 | 23.238689 | 20.814964 | 21.04566 | 23.661946 | 28.36437 | 30.56520 | 20.814964 | 30.59439 | 30.59439 |                 0 |                 1 |      \-1.6135515 |        0.4119774 |        0.1161138 | 1                                              |
+|                   32.99 |                     113.5422 |                   15.1897 |                      67.1249 |                23.0000 |              0.0011945 |             3.7700 |                 5.6809 |                    2.9400 |                         4294.5151 |                      28.0700 |               6.35 |               26.0000 |              139180.2 |  54.817648 |  51.487822 |  58.090691 |  46.221657 | 28.741644 | 21.902471 | 20.747185 | 20.235605 | 30.494461 |  48.744764 |  43.943359 |  48.245397 | 20.235605 |  58.090691 | 39.472725 | 39.11428 | 35.13561 | 29.94465 | 21.86327 | 14.605812 | 10.181797 | 10.095315 | 14.65974 | 22.11152 | 28.48289 | 35.20299 | 38.61890 | 10.095315 | 39.11428 |  25.00140 |  6.813742 |  7.341666 |  6.940662 |  6.016681 |  5.430431 |  4.348466 |  4.120788 |  4.203281 |  4.430351 |  5.268101 |  5.468820 |  5.962599 |  4.120788 |  7.341666 |  5.557717 |  24.42841 |  23.09359 |  20.37397 | 15.565086 | 11.507261 |  8.939542 |  8.235375 | 10.044128 | 12.665910 | 16.042906 |  19.61574 |  22.86590 |  4.120788 |  7.341666 |   5.557717 | 15.96000 | 17.64192 | 18.35239 | 19.842953 | 21.117921 | 22.200074 | 22.634197 | 21.851585 | 20.58712 | 20.240094 | 17.48120 | 15.67617 | 15.676172 | 22.63420 | 22.63420 |                 1 |                 0 |        0.6748939 |      \-0.2331342 |      \-0.1589385 | 2                                              |
+
+``` r
+model_vars <- score_frame$varName[score_frame$recommended]
+
+model <- glmnet(x = as.matrix(d_prepared[, model_vars, drop=FALSE]), 
+               y = d_prepared[['transmission.mode.to.humans.simplified.numeric']],
+               family = 'multinomial')
+```
+
+# convenience functions for predicting and adding predictions to original data frame
+
+``` r
+# convenience functions for predicting and adding predictions to original data frame
+
+add_predictions <- function(d_prepared, model_vars, model) {
+  preds <- predict(
+    model, 
+    newx = as.matrix(d_prepared[, model_vars, drop=FALSE]),
+    s = min(model$lambda),  # in practice we would cross-validated for a good s
+    type = 'response')
+  preds <- as.data.frame(preds[, , 1])
+  preds$prob_on_predicted_class <- apply(preds, 1, max)
+  preds$predict <- NA_character_
+  for(col in colnames(preds)) {
+    alter = is.na(preds$predict) & preds[[col]] >= preds$prob_on_predicted_class
+    preds$predict[alter] <- col
+  }
+  d_prepared <- cbind(d_prepared, preds)
+  d_prepared
+}
+
+add_value_by_column <- function(d_prepared, name_column, new_column) {
+  vals = unique(d_prepared[[name_column]])
+  d_prepared[[new_column]] <- NA_real_
+  for(col in vals) {
+    match <- d_prepared[[name_column]] == col
+    d_prepared[[new_column]][match] <- d_prepared[match, col, drop=TRUE]
+  }
+  d_prepared
+}
+```
+
+``` r
+# now predict
+d_prepared <- add_predictions(d_prepared, model_vars, model)
+
+# name_column = 'transmission.mode.to.humans.simplified.numeric'
+# vals = unique(d_prepared[[name_column]])
+# d_prepared[[new_column]] <- NA_real_
+#   for(col in vals) {
+#     match <- d_prepared[[name_column]] == col
+#     d_prepared[[new_column]][match] <- d_prepared[match, col, drop=TRUE]
+#   }
+# 
+
+
+d_prepared <- add_value_by_column(d_prepared, 'transmission.mode.to.humans.simplified.numeric', 'prob_on_correct_class')
+
+to_print <- c('transmission.mode.to.humans.simplified.numeric', 'predict', 'large','liminal','small', 'prob_on_predicted_class', 'prob_on_correct_class')
+# d_prepared[, to_print, drop = FALSE] %.>%
+#   head(.) %.>%
+#   knitr::kable(.)
+
+table(truth = d_prepared$transmission.mode.to.humans.simplified.numeric, prediction = d_prepared$predict)
+```
+
+    ##      prediction
+    ## truth  0  1  2
+    ##     0  6  6  1
+    ##     1  2 74 13
+    ##     2  3 28 23
+
+\#\#\#prepare data with vtreat – binomial (excluding direct)
+
+``` r
+dat = dat_backup
+dat = subset(dat, transmission.mode.to.humans.simplified.numeric !=0)
+dat$transmission.mode.to.humans.simplified.numeric= as.numeric(as.character(dat$transmission.mode.to.humans.simplified.numeric))-1
+dat$random = factor(sample(c(0,1), size = dim(dat)[1], replace = TRUE))
+transform_design = vtreat::mkCrossFrameMExperiment(
+    d = dat,                                         # data to learn transform from
+    vars = setdiff(colnames(dat), c('transmission.mode.to.humans.simplified.numeric')),     # columns to transform
+    y_name = 'transmission.mode.to.humans.simplified.numeric'# outcome variable
+)
+transform <- transform_design$treat_m
+d_prepared <- transform_design$cross_frame
+score_frame <- transform_design$score_frame
+score_frame$recommended <- score_frame$varMoves & (score_frame$sig < 1/nrow(score_frame))
+
+knitr::kable(score_frame)
+```
+
+| varName                           | varMoves |       rsq |       sig | outcome\_level | needsSplit | extraModelDegrees | origName                        | code  | recommended |
+| :-------------------------------- | :------- | --------: | --------: | :------------- | :--------- | ----------------: | :------------------------------ | :---- | :---------- |
+| lst\_Apr                          | TRUE     | 0.0239077 | 0.0332556 | 0              | FALSE      |                 0 | lst\_Apr                        | clean | FALSE       |
+| lst\_Aug                          | TRUE     | 0.0495659 | 0.0021734 | 0              | FALSE      |                 0 | lst\_Aug                        | clean | TRUE        |
+| lst\_Dec                          | TRUE     | 0.0022058 | 0.5178424 | 0              | FALSE      |                 0 | lst\_Dec                        | clean | FALSE       |
+| lst\_Feb                          | TRUE     | 0.0031913 | 0.4366637 | 0              | FALSE      |                 0 | lst\_Feb                        | clean | FALSE       |
+| lst\_Jan                          | TRUE     | 0.0021948 | 0.5188919 | 0              | FALSE      |                 0 | lst\_Jan                        | clean | FALSE       |
+| lst\_Jul                          | TRUE     | 0.0500424 | 0.0020689 | 0              | FALSE      |                 0 | lst\_Jul                        | clean | TRUE        |
+| lst\_Jun                          | TRUE     | 0.0494340 | 0.0022033 | 0              | FALSE      |                 0 | lst\_Jun                        | clean | TRUE        |
+| lst\_Mar                          | TRUE     | 0.0089285 | 0.1932428 | 0              | FALSE      |                 0 | lst\_Mar                        | clean | FALSE       |
+| lst\_max                          | TRUE     | 0.0505554 | 0.0019622 | 0              | FALSE      |                 0 | lst\_max                        | clean | TRUE        |
+| lst\_May                          | TRUE     | 0.0453494 | 0.0033660 | 0              | FALSE      |                 0 | lst\_May                        | clean | TRUE        |
+| lst\_mean                         | TRUE     | 0.0275867 | 0.0221997 | 0              | FALSE      |                 0 | lst\_mean                       | clean | FALSE       |
+| lst\_min                          | TRUE     | 0.0080427 | 0.2168985 | 0              | FALSE      |                 0 | lst\_min                        | clean | FALSE       |
+| lst\_Nov                          | TRUE     | 0.0068168 | 0.2556133 | 0              | FALSE      |                 0 | lst\_Nov                        | clean | FALSE       |
+| lst\_Oct                          | TRUE     | 0.0260176 | 0.0263551 | 0              | FALSE      |                 0 | lst\_Oct                        | clean | FALSE       |
+| lst\_Sep                          | TRUE     | 0.0487022 | 0.0023766 | 0              | FALSE      |                 0 | lst\_Sep                        | clean | TRUE        |
+| random\_lev\_x\_0                 | TRUE     | 0.0058857 | 0.2908158 | 0              | FALSE      |                 0 | random                          | lev   | FALSE       |
+| random\_lev\_x\_1                 | TRUE     | 0.0058857 | 0.2908158 | 0              | FALSE      |                 0 | random                          | lev   | FALSE       |
+| rf\_Apr                           | TRUE     | 0.0134341 | 0.1105093 | 0              | FALSE      |                 0 | rf\_Apr                         | clean | FALSE       |
+| rf\_Aug                           | TRUE     | 0.0085208 | 0.2037311 | 0              | FALSE      |                 0 | rf\_Aug                         | clean | FALSE       |
+| rf\_Dec                           | TRUE     | 0.0236634 | 0.0341685 | 0              | FALSE      |                 0 | rf\_Dec                         | clean | FALSE       |
+| rf\_Feb                           | TRUE     | 0.0177142 | 0.0668646 | 0              | FALSE      |                 0 | rf\_Feb                         | clean | FALSE       |
+| rf\_Jan                           | TRUE     | 0.0214678 | 0.0436512 | 0              | FALSE      |                 0 | rf\_Jan                         | clean | FALSE       |
+| rf\_Jul                           | TRUE     | 0.0110036 | 0.1486423 | 0              | FALSE      |                 0 | rf\_Jul                         | clean | FALSE       |
+| rf\_Jun                           | TRUE     | 0.0064990 | 0.2669951 | 0              | FALSE      |                 0 | rf\_Jun                         | clean | FALSE       |
+| rf\_Mar                           | TRUE     | 0.0166815 | 0.0753443 | 0              | FALSE      |                 0 | rf\_Mar                         | clean | FALSE       |
+| rf\_max                           | TRUE     | 0.0298779 | 0.0173123 | 0              | FALSE      |                 0 | rf\_max                         | clean | FALSE       |
+| rf\_May                           | TRUE     | 0.0081343 | 0.2142984 | 0              | FALSE      |                 0 | rf\_May                         | clean | FALSE       |
+| rf\_mean                          | TRUE     | 0.0238616 | 0.0334260 | 0              | FALSE      |                 0 | rf\_mean                        | clean | FALSE       |
+| rf\_min                           | TRUE     | 0.0091655 | 0.1874376 | 0              | FALSE      |                 0 | rf\_min                         | clean | FALSE       |
+| rf\_Nov                           | TRUE     | 0.0169676 | 0.0728850 | 0              | FALSE      |                 0 | rf\_Nov                         | clean | FALSE       |
+| rf\_Oct                           | TRUE     | 0.0142358 | 0.1004168 | 0              | FALSE      |                 0 | rf\_Oct                         | clean | FALSE       |
+| rf\_Sep                           | TRUE     | 0.0096522 | 0.1761357 | 0              | FALSE      |                 0 | rf\_Sep                         | clean | FALSE       |
+| sh\_Apr                           | TRUE     | 0.0066036 | 0.2631794 | 0              | FALSE      |                 0 | sh\_Apr                         | clean | FALSE       |
+| sh\_Aug                           | TRUE     | 0.0023659 | 0.5030270 | 0              | FALSE      |                 0 | sh\_Aug                         | clean | FALSE       |
+| sh\_Dec                           | TRUE     | 0.0075769 | 0.2307094 | 0              | FALSE      |                 0 | sh\_Dec                         | clean | FALSE       |
+| sh\_Feb                           | TRUE     | 0.0099831 | 0.1689019 | 0              | FALSE      |                 0 | sh\_Feb                         | clean | FALSE       |
+| sh\_Jan                           | TRUE     | 0.0094521 | 0.1806837 | 0              | FALSE      |                 0 | sh\_Jan                         | clean | FALSE       |
+| sh\_Jul                           | TRUE     | 0.0007243 | 0.7109687 | 0              | FALSE      |                 0 | sh\_Jul                         | clean | FALSE       |
+| sh\_Jun                           | TRUE     | 0.0000948 | 0.8933356 | 0              | FALSE      |                 0 | sh\_Jun                         | clean | FALSE       |
+| sh\_Mar                           | TRUE     | 0.0094768 | 0.1801161 | 0              | FALSE      |                 0 | sh\_Mar                         | clean | FALSE       |
+| sh\_max                           | TRUE     | 0.0071673 | 0.2437431 | 0              | FALSE      |                 0 | sh\_max                         | clean | FALSE       |
+| sh\_May                           | TRUE     | 0.0014732 | 0.5971675 | 0              | FALSE      |                 0 | sh\_May                         | clean | FALSE       |
+| sh\_mean                          | TRUE     | 0.0027011 | 0.4742337 | 0              | FALSE      |                 0 | sh\_mean                        | clean | FALSE       |
+| sh\_min                           | TRUE     | 0.0000004 | 0.9931245 | 0              | FALSE      |                 0 | sh\_min                         | clean | FALSE       |
+| sh\_Nov                           | TRUE     | 0.0043482 | 0.3639085 | 0              | FALSE      |                 0 | sh\_Nov                         | clean | FALSE       |
+| sh\_Oct                           | TRUE     | 0.0011584 | 0.6393265 | 0              | FALSE      |                 0 | sh\_Oct                         | clean | FALSE       |
+| sh\_Sep                           | TRUE     | 0.0008167 | 0.6939521 | 0              | FALSE      |                 0 | sh\_Sep                         | clean | FALSE       |
+| sm\_Apr                           | TRUE     | 0.0381055 | 0.0071925 | 0              | FALSE      |                 0 | sm\_Apr                         | clean | FALSE       |
+| sm\_Aug                           | TRUE     | 0.0192397 | 0.0561507 | 0              | FALSE      |                 0 | sm\_Aug                         | clean | FALSE       |
+| sm\_Dec                           | TRUE     | 0.0347341 | 0.0102836 | 0              | FALSE      |                 0 | sm\_Dec                         | clean | FALSE       |
+| sm\_Feb                           | TRUE     | 0.0233834 | 0.0352470 | 0              | FALSE      |                 0 | sm\_Feb                         | clean | FALSE       |
+| sm\_Jan                           | TRUE     | 0.0280520 | 0.0211029 | 0              | FALSE      |                 0 | sm\_Jan                         | clean | FALSE       |
+| sm\_Jul                           | TRUE     | 0.0278763 | 0.0215104 | 0              | FALSE      |                 0 | sm\_Jul                         | clean | FALSE       |
+| sm\_Jun                           | TRUE     | 0.0326501 | 0.0128474 | 0              | FALSE      |                 0 | sm\_Jun                         | clean | FALSE       |
+| sm\_Mar                           | TRUE     | 0.0289955 | 0.0190477 | 0              | FALSE      |                 0 | sm\_Mar                         | clean | FALSE       |
+| sm\_max                           | TRUE     | 0.0341111 | 0.0109897 | 0              | FALSE      |                 0 | sm\_max                         | clean | FALSE       |
+| sm\_May                           | TRUE     | 0.0405504 | 0.0055596 | 0              | FALSE      |                 0 | sm\_May                         | clean | FALSE       |
+| sm\_mean                          | TRUE     | 0.0341111 | 0.0109897 | 0              | FALSE      |                 0 | sm\_mean                        | clean | FALSE       |
+| sm\_min                           | TRUE     | 0.0381322 | 0.0071722 | 0              | FALSE      |                 0 | sm\_min                         | clean | FALSE       |
+| sm\_Nov                           | TRUE     | 0.0406433 | 0.0055056 | 0              | FALSE      |                 0 | sm\_Nov                         | clean | FALSE       |
+| sm\_Oct                           | TRUE     | 0.0314558 | 0.0146044 | 0              | FALSE      |                 0 | sm\_Oct                         | clean | FALSE       |
+| sm\_Sep                           | TRUE     | 0.0188574 | 0.0586518 | 0              | FALSE      |                 0 | sm\_Sep                         | clean | FALSE       |
+| tair\_Apr                         | TRUE     | 0.0066245 | 0.2624247 | 0              | FALSE      |                 0 | tair\_Apr                       | clean | FALSE       |
+| tair\_Aug                         | TRUE     | 0.0587561 | 0.0008452 | 0              | FALSE      |                 0 | tair\_Aug                       | clean | TRUE        |
+| tair\_Dec                         | TRUE     | 0.0009655 | 0.6687711 | 0              | FALSE      |                 0 | tair\_Dec                       | clean | FALSE       |
+| tair\_Feb                         | TRUE     | 0.0006991 | 0.7158100 | 0              | FALSE      |                 0 | tair\_Feb                       | clean | FALSE       |
+| tair\_Jan                         | TRUE     | 0.0005978 | 0.7363766 | 0              | FALSE      |                 0 | tair\_Jan                       | clean | FALSE       |
+| tair\_Jul                         | TRUE     | 0.0622877 | 0.0005895 | 0              | FALSE      |                 0 | tair\_Jul                       | clean | TRUE        |
+| tair\_Jun                         | TRUE     | 0.0533222 | 0.0014754 | 0              | FALSE      |                 0 | tair\_Jun                       | clean | TRUE        |
+| tair\_Mar                         | TRUE     | 0.0021881 | 0.5195225 | 0              | FALSE      |                 0 | tair\_Mar                       | clean | FALSE       |
+| tair\_max                         | TRUE     | 0.0071673 | 0.2437431 | 0              | FALSE      |                 0 | tair\_max                       | clean | FALSE       |
+| tair\_May                         | TRUE     | 0.0297177 | 0.0176148 | 0              | FALSE      |                 0 | tair\_May                       | clean | FALSE       |
+| tair\_mean                        | TRUE     | 0.0027011 | 0.4742337 | 0              | FALSE      |                 0 | tair\_mean                      | clean | FALSE       |
+| tair\_min                         | TRUE     | 0.0000004 | 0.9931245 | 0              | FALSE      |                 0 | tair\_min                       | clean | FALSE       |
+| tair\_Nov                         | TRUE     | 0.0042900 | 0.3671399 | 0              | FALSE      |                 0 | tair\_Nov                       | clean | FALSE       |
+| tair\_Oct                         | TRUE     | 0.0155359 | 0.0861225 | 0              | FALSE      |                 0 | tair\_Oct                       | clean | FALSE       |
+| tair\_Sep                         | TRUE     | 0.0412586 | 0.0051612 | 0              | FALSE      |                 0 | tair\_Sep                       | clean | TRUE        |
+| X13\_1\_AdultHeadBodyLen\_mm      | TRUE     | 0.0002926 | 0.8137896 | 0              | FALSE      |                 0 | X13.1\_AdultHeadBodyLen\_mm     | clean | FALSE       |
+| X15\_1\_LitterSize                | TRUE     | 0.0027102 | 0.4734898 | 0              | FALSE      |                 0 | X15.1\_LitterSize               | clean | FALSE       |
+| X16\_1\_LittersPerYear            | TRUE     | 0.0002492 | 0.8279373 | 0              | FALSE      |                 0 | X16.1\_LittersPerYear           | clean | FALSE       |
+| X18\_1\_BasalMetRate\_mLO2hr      | TRUE     | 0.0006432 | 0.7269312 | 0              | FALSE      |                 0 | X18.1\_BasalMetRate\_mLO2hr     | clean | FALSE       |
+| X2\_1\_AgeatEyeOpening\_d         | TRUE     | 0.0003234 | 0.8044230 | 0              | FALSE      |                 0 | X2.1\_AgeatEyeOpening\_d        | clean | FALSE       |
+| X21\_1\_PopulationDensity\_n\_km2 | TRUE     | 0.0000172 | 0.9544043 | 0              | FALSE      |                 0 | X21.1\_PopulationDensity\_n.km2 | clean | FALSE       |
+| X22\_1\_HomeRange\_km2            | TRUE     | 0.0050697 | 0.3268974 | 0              | FALSE      |                 0 | X22.1\_HomeRange\_km2           | clean | FALSE       |
+| X23\_1\_SexualMaturityAge\_d      | TRUE     | 0.0114395 | 0.1408389 | 0              | FALSE      |                 0 | X23.1\_SexualMaturityAge\_d     | clean | FALSE       |
+| X24\_1\_TeatNumber                | TRUE     | 0.0025513 | 0.4867560 | 0              | FALSE      |                 0 | X24.1\_TeatNumber               | clean | FALSE       |
+| X25\_1\_WeaningAge\_d             | TRUE     | 0.0026724 | 0.4765964 | 0              | FALSE      |                 0 | X25.1\_WeaningAge\_d            | clean | FALSE       |
+| X26\_1\_GR\_Area\_km2             | TRUE     | 0.0010620 | 0.6536483 | 0              | FALSE      |                 0 | X26.1\_GR\_Area\_km2            | clean | FALSE       |
+| X5\_1\_AdultBodyMass\_g           | TRUE     | 0.0110205 | 0.1483303 | 0              | FALSE      |                 0 | X5.1\_AdultBodyMass\_g          | clean | FALSE       |
+| X5\_3\_NeonateBodyMass\_g         | TRUE     | 0.0008829 | 0.6824496 | 0              | FALSE      |                 0 | X5.3\_NeonateBodyMass\_g        | clean | FALSE       |
+| X9\_1\_GestationLen\_d            | TRUE     | 0.0129962 | 0.1164901 | 0              | FALSE      |                 0 | X9.1\_GestationLen\_d           | clean | FALSE       |
+| lst\_Apr                          | TRUE     | 0.0239077 | 0.0332556 | 1              | FALSE      |                 0 | lst\_Apr                        | clean | FALSE       |
+| lst\_Aug                          | TRUE     | 0.0495659 | 0.0021734 | 1              | FALSE      |                 0 | lst\_Aug                        | clean | TRUE        |
+| lst\_Dec                          | TRUE     | 0.0022058 | 0.5178424 | 1              | FALSE      |                 0 | lst\_Dec                        | clean | FALSE       |
+| lst\_Feb                          | TRUE     | 0.0031913 | 0.4366637 | 1              | FALSE      |                 0 | lst\_Feb                        | clean | FALSE       |
+| lst\_Jan                          | TRUE     | 0.0021948 | 0.5188919 | 1              | FALSE      |                 0 | lst\_Jan                        | clean | FALSE       |
+| lst\_Jul                          | TRUE     | 0.0500424 | 0.0020689 | 1              | FALSE      |                 0 | lst\_Jul                        | clean | TRUE        |
+| lst\_Jun                          | TRUE     | 0.0494340 | 0.0022033 | 1              | FALSE      |                 0 | lst\_Jun                        | clean | TRUE        |
+| lst\_Mar                          | TRUE     | 0.0089285 | 0.1932428 | 1              | FALSE      |                 0 | lst\_Mar                        | clean | FALSE       |
+| lst\_max                          | TRUE     | 0.0505554 | 0.0019622 | 1              | FALSE      |                 0 | lst\_max                        | clean | TRUE        |
+| lst\_May                          | TRUE     | 0.0453494 | 0.0033660 | 1              | FALSE      |                 0 | lst\_May                        | clean | TRUE        |
+| lst\_mean                         | TRUE     | 0.0275867 | 0.0221997 | 1              | FALSE      |                 0 | lst\_mean                       | clean | FALSE       |
+| lst\_min                          | TRUE     | 0.0080427 | 0.2168985 | 1              | FALSE      |                 0 | lst\_min                        | clean | FALSE       |
+| lst\_Nov                          | TRUE     | 0.0068168 | 0.2556133 | 1              | FALSE      |                 0 | lst\_Nov                        | clean | FALSE       |
+| lst\_Oct                          | TRUE     | 0.0260176 | 0.0263551 | 1              | FALSE      |                 0 | lst\_Oct                        | clean | FALSE       |
+| lst\_Sep                          | TRUE     | 0.0487022 | 0.0023766 | 1              | FALSE      |                 0 | lst\_Sep                        | clean | TRUE        |
+| random\_lev\_x\_0                 | TRUE     | 0.0058857 | 0.2908158 | 1              | FALSE      |                 0 | random                          | lev   | FALSE       |
+| random\_lev\_x\_1                 | TRUE     | 0.0058857 | 0.2908158 | 1              | FALSE      |                 0 | random                          | lev   | FALSE       |
+| rf\_Apr                           | TRUE     | 0.0134341 | 0.1105093 | 1              | FALSE      |                 0 | rf\_Apr                         | clean | FALSE       |
+| rf\_Aug                           | TRUE     | 0.0085208 | 0.2037311 | 1              | FALSE      |                 0 | rf\_Aug                         | clean | FALSE       |
+| rf\_Dec                           | TRUE     | 0.0236634 | 0.0341685 | 1              | FALSE      |                 0 | rf\_Dec                         | clean | FALSE       |
+| rf\_Feb                           | TRUE     | 0.0177142 | 0.0668646 | 1              | FALSE      |                 0 | rf\_Feb                         | clean | FALSE       |
+| rf\_Jan                           | TRUE     | 0.0214678 | 0.0436512 | 1              | FALSE      |                 0 | rf\_Jan                         | clean | FALSE       |
+| rf\_Jul                           | TRUE     | 0.0110036 | 0.1486423 | 1              | FALSE      |                 0 | rf\_Jul                         | clean | FALSE       |
+| rf\_Jun                           | TRUE     | 0.0064990 | 0.2669951 | 1              | FALSE      |                 0 | rf\_Jun                         | clean | FALSE       |
+| rf\_Mar                           | TRUE     | 0.0166815 | 0.0753443 | 1              | FALSE      |                 0 | rf\_Mar                         | clean | FALSE       |
+| rf\_max                           | TRUE     | 0.0298779 | 0.0173123 | 1              | FALSE      |                 0 | rf\_max                         | clean | FALSE       |
+| rf\_May                           | TRUE     | 0.0081343 | 0.2142984 | 1              | FALSE      |                 0 | rf\_May                         | clean | FALSE       |
+| rf\_mean                          | TRUE     | 0.0238616 | 0.0334260 | 1              | FALSE      |                 0 | rf\_mean                        | clean | FALSE       |
+| rf\_min                           | TRUE     | 0.0091655 | 0.1874376 | 1              | FALSE      |                 0 | rf\_min                         | clean | FALSE       |
+| rf\_Nov                           | TRUE     | 0.0169676 | 0.0728850 | 1              | FALSE      |                 0 | rf\_Nov                         | clean | FALSE       |
+| rf\_Oct                           | TRUE     | 0.0142358 | 0.1004168 | 1              | FALSE      |                 0 | rf\_Oct                         | clean | FALSE       |
+| rf\_Sep                           | TRUE     | 0.0096522 | 0.1761357 | 1              | FALSE      |                 0 | rf\_Sep                         | clean | FALSE       |
+| sh\_Apr                           | TRUE     | 0.0066036 | 0.2631794 | 1              | FALSE      |                 0 | sh\_Apr                         | clean | FALSE       |
+| sh\_Aug                           | TRUE     | 0.0023659 | 0.5030270 | 1              | FALSE      |                 0 | sh\_Aug                         | clean | FALSE       |
+| sh\_Dec                           | TRUE     | 0.0075769 | 0.2307094 | 1              | FALSE      |                 0 | sh\_Dec                         | clean | FALSE       |
+| sh\_Feb                           | TRUE     | 0.0099831 | 0.1689019 | 1              | FALSE      |                 0 | sh\_Feb                         | clean | FALSE       |
+| sh\_Jan                           | TRUE     | 0.0094521 | 0.1806837 | 1              | FALSE      |                 0 | sh\_Jan                         | clean | FALSE       |
+| sh\_Jul                           | TRUE     | 0.0007243 | 0.7109687 | 1              | FALSE      |                 0 | sh\_Jul                         | clean | FALSE       |
+| sh\_Jun                           | TRUE     | 0.0000948 | 0.8933356 | 1              | FALSE      |                 0 | sh\_Jun                         | clean | FALSE       |
+| sh\_Mar                           | TRUE     | 0.0094768 | 0.1801161 | 1              | FALSE      |                 0 | sh\_Mar                         | clean | FALSE       |
+| sh\_max                           | TRUE     | 0.0071673 | 0.2437431 | 1              | FALSE      |                 0 | sh\_max                         | clean | FALSE       |
+| sh\_May                           | TRUE     | 0.0014732 | 0.5971675 | 1              | FALSE      |                 0 | sh\_May                         | clean | FALSE       |
+| sh\_mean                          | TRUE     | 0.0027011 | 0.4742337 | 1              | FALSE      |                 0 | sh\_mean                        | clean | FALSE       |
+| sh\_min                           | TRUE     | 0.0000004 | 0.9931245 | 1              | FALSE      |                 0 | sh\_min                         | clean | FALSE       |
+| sh\_Nov                           | TRUE     | 0.0043482 | 0.3639085 | 1              | FALSE      |                 0 | sh\_Nov                         | clean | FALSE       |
+| sh\_Oct                           | TRUE     | 0.0011584 | 0.6393265 | 1              | FALSE      |                 0 | sh\_Oct                         | clean | FALSE       |
+| sh\_Sep                           | TRUE     | 0.0008167 | 0.6939521 | 1              | FALSE      |                 0 | sh\_Sep                         | clean | FALSE       |
+| sm\_Apr                           | TRUE     | 0.0381055 | 0.0071925 | 1              | FALSE      |                 0 | sm\_Apr                         | clean | FALSE       |
+| sm\_Aug                           | TRUE     | 0.0192397 | 0.0561507 | 1              | FALSE      |                 0 | sm\_Aug                         | clean | FALSE       |
+| sm\_Dec                           | TRUE     | 0.0347341 | 0.0102836 | 1              | FALSE      |                 0 | sm\_Dec                         | clean | FALSE       |
+| sm\_Feb                           | TRUE     | 0.0233834 | 0.0352470 | 1              | FALSE      |                 0 | sm\_Feb                         | clean | FALSE       |
+| sm\_Jan                           | TRUE     | 0.0280520 | 0.0211029 | 1              | FALSE      |                 0 | sm\_Jan                         | clean | FALSE       |
+| sm\_Jul                           | TRUE     | 0.0278763 | 0.0215104 | 1              | FALSE      |                 0 | sm\_Jul                         | clean | FALSE       |
+| sm\_Jun                           | TRUE     | 0.0326501 | 0.0128474 | 1              | FALSE      |                 0 | sm\_Jun                         | clean | FALSE       |
+| sm\_Mar                           | TRUE     | 0.0289955 | 0.0190477 | 1              | FALSE      |                 0 | sm\_Mar                         | clean | FALSE       |
+| sm\_max                           | TRUE     | 0.0341111 | 0.0109897 | 1              | FALSE      |                 0 | sm\_max                         | clean | FALSE       |
+| sm\_May                           | TRUE     | 0.0405504 | 0.0055596 | 1              | FALSE      |                 0 | sm\_May                         | clean | FALSE       |
+| sm\_mean                          | TRUE     | 0.0341111 | 0.0109897 | 1              | FALSE      |                 0 | sm\_mean                        | clean | FALSE       |
+| sm\_min                           | TRUE     | 0.0381322 | 0.0071722 | 1              | FALSE      |                 0 | sm\_min                         | clean | FALSE       |
+| sm\_Nov                           | TRUE     | 0.0406433 | 0.0055056 | 1              | FALSE      |                 0 | sm\_Nov                         | clean | FALSE       |
+| sm\_Oct                           | TRUE     | 0.0314558 | 0.0146044 | 1              | FALSE      |                 0 | sm\_Oct                         | clean | FALSE       |
+| sm\_Sep                           | TRUE     | 0.0188574 | 0.0586518 | 1              | FALSE      |                 0 | sm\_Sep                         | clean | FALSE       |
+| tair\_Apr                         | TRUE     | 0.0066245 | 0.2624247 | 1              | FALSE      |                 0 | tair\_Apr                       | clean | FALSE       |
+| tair\_Aug                         | TRUE     | 0.0587561 | 0.0008452 | 1              | FALSE      |                 0 | tair\_Aug                       | clean | TRUE        |
+| tair\_Dec                         | TRUE     | 0.0009655 | 0.6687711 | 1              | FALSE      |                 0 | tair\_Dec                       | clean | FALSE       |
+| tair\_Feb                         | TRUE     | 0.0006991 | 0.7158100 | 1              | FALSE      |                 0 | tair\_Feb                       | clean | FALSE       |
+| tair\_Jan                         | TRUE     | 0.0005978 | 0.7363766 | 1              | FALSE      |                 0 | tair\_Jan                       | clean | FALSE       |
+| tair\_Jul                         | TRUE     | 0.0622877 | 0.0005895 | 1              | FALSE      |                 0 | tair\_Jul                       | clean | TRUE        |
+| tair\_Jun                         | TRUE     | 0.0533222 | 0.0014754 | 1              | FALSE      |                 0 | tair\_Jun                       | clean | TRUE        |
+| tair\_Mar                         | TRUE     | 0.0021881 | 0.5195225 | 1              | FALSE      |                 0 | tair\_Mar                       | clean | FALSE       |
+| tair\_max                         | TRUE     | 0.0071673 | 0.2437431 | 1              | FALSE      |                 0 | tair\_max                       | clean | FALSE       |
+| tair\_May                         | TRUE     | 0.0297177 | 0.0176148 | 1              | FALSE      |                 0 | tair\_May                       | clean | FALSE       |
+| tair\_mean                        | TRUE     | 0.0027011 | 0.4742337 | 1              | FALSE      |                 0 | tair\_mean                      | clean | FALSE       |
+| tair\_min                         | TRUE     | 0.0000004 | 0.9931245 | 1              | FALSE      |                 0 | tair\_min                       | clean | FALSE       |
+| tair\_Nov                         | TRUE     | 0.0042900 | 0.3671399 | 1              | FALSE      |                 0 | tair\_Nov                       | clean | FALSE       |
+| tair\_Oct                         | TRUE     | 0.0155359 | 0.0861225 | 1              | FALSE      |                 0 | tair\_Oct                       | clean | FALSE       |
+| tair\_Sep                         | TRUE     | 0.0412586 | 0.0051612 | 1              | FALSE      |                 0 | tair\_Sep                       | clean | TRUE        |
+| X13\_1\_AdultHeadBodyLen\_mm      | TRUE     | 0.0002926 | 0.8137896 | 1              | FALSE      |                 0 | X13.1\_AdultHeadBodyLen\_mm     | clean | FALSE       |
+| X15\_1\_LitterSize                | TRUE     | 0.0027102 | 0.4734898 | 1              | FALSE      |                 0 | X15.1\_LitterSize               | clean | FALSE       |
+| X16\_1\_LittersPerYear            | TRUE     | 0.0002492 | 0.8279373 | 1              | FALSE      |                 0 | X16.1\_LittersPerYear           | clean | FALSE       |
+| X18\_1\_BasalMetRate\_mLO2hr      | TRUE     | 0.0006432 | 0.7269312 | 1              | FALSE      |                 0 | X18.1\_BasalMetRate\_mLO2hr     | clean | FALSE       |
+| X2\_1\_AgeatEyeOpening\_d         | TRUE     | 0.0003234 | 0.8044230 | 1              | FALSE      |                 0 | X2.1\_AgeatEyeOpening\_d        | clean | FALSE       |
+| X21\_1\_PopulationDensity\_n\_km2 | TRUE     | 0.0000172 | 0.9544043 | 1              | FALSE      |                 0 | X21.1\_PopulationDensity\_n.km2 | clean | FALSE       |
+| X22\_1\_HomeRange\_km2            | TRUE     | 0.0050697 | 0.3268974 | 1              | FALSE      |                 0 | X22.1\_HomeRange\_km2           | clean | FALSE       |
+| X23\_1\_SexualMaturityAge\_d      | TRUE     | 0.0114395 | 0.1408389 | 1              | FALSE      |                 0 | X23.1\_SexualMaturityAge\_d     | clean | FALSE       |
+| X24\_1\_TeatNumber                | TRUE     | 0.0025513 | 0.4867560 | 1              | FALSE      |                 0 | X24.1\_TeatNumber               | clean | FALSE       |
+| X25\_1\_WeaningAge\_d             | TRUE     | 0.0026724 | 0.4765964 | 1              | FALSE      |                 0 | X25.1\_WeaningAge\_d            | clean | FALSE       |
+| X26\_1\_GR\_Area\_km2             | TRUE     | 0.0010620 | 0.6536483 | 1              | FALSE      |                 0 | X26.1\_GR\_Area\_km2            | clean | FALSE       |
+| X5\_1\_AdultBodyMass\_g           | TRUE     | 0.0110205 | 0.1483303 | 1              | FALSE      |                 0 | X5.1\_AdultBodyMass\_g          | clean | FALSE       |
+| X5\_3\_NeonateBodyMass\_g         | TRUE     | 0.0008829 | 0.6824496 | 1              | FALSE      |                 0 | X5.3\_NeonateBodyMass\_g        | clean | FALSE       |
+| X9\_1\_GestationLen\_d            | TRUE     | 0.0129962 | 0.1164901 | 1              | FALSE      |                 0 | X9.1\_GestationLen\_d           | clean | FALSE       |
+| X0\_random\_catB                  | TRUE     | 0.0002121 | 0.8410743 | 0              | TRUE       |                 1 | random                          | catB  | FALSE       |
+| X1\_random\_catB                  | TRUE     | 0.0006257 | 0.7305323 | 1              | TRUE       |                 1 | random                          | catB  | FALSE       |
+
+\#\#examining variables –
+binomial
+
+``` r
+good_new_variables = unique(score_frame[score_frame[['recommended']], 'varName', drop = TRUE])
+good_new_variables
+```
+
+    ##  [1] "lst_Aug"  "lst_Jul"  "lst_Jun"  "lst_max"  "lst_May"  "lst_Sep" 
+    ##  [7] "tair_Aug" "tair_Jul" "tair_Jun" "tair_Sep"
+
+\#\#\#Using the Prepared Data in a Model – binomial
+
+``` r
+d_prepared %.>%
+  head(.) %.>%
+  knitr::kable(.)
+```
+
+| X5\_1\_AdultBodyMass\_g | X13\_1\_AdultHeadBodyLen\_mm | X2\_1\_AgeatEyeOpening\_d | X18\_1\_BasalMetRate\_mLO2hr | X9\_1\_GestationLen\_d | X22\_1\_HomeRange\_km2 | X15\_1\_LitterSize | X16\_1\_LittersPerYear | X5\_3\_NeonateBodyMass\_g | X21\_1\_PopulationDensity\_n\_km2 | X23\_1\_SexualMaturityAge\_d | X24\_1\_TeatNumber | X25\_1\_WeaningAge\_d | X26\_1\_GR\_Area\_km2 |   rf\_Jan |    rf\_Feb |   rf\_Mar |    rf\_Apr |   rf\_May |   rf\_Jun |   rf\_Jul |   rf\_Aug |    rf\_Sep |    rf\_Oct |    rf\_Nov |    rf\_Dec |   rf\_min |   rf\_max |   rf\_mean | lst\_Jan | lst\_Feb | lst\_Mar | lst\_Apr |  lst\_May |  lst\_Jun |  lst\_Jul | lst\_Aug | lst\_Sep | lst\_Oct | lst\_Nov | lst\_Dec |  lst\_min | lst\_max | lst\_mean |   sh\_Jan |   sh\_Feb |   sh\_Mar |   sh\_Apr |   sh\_May |   sh\_Jun |   sh\_Jul |   sh\_Aug |   sh\_Sep |   sh\_Oct |   sh\_Nov |   sh\_Dec |   sh\_min |   sh\_max |  sh\_mean | tair\_Jan | tair\_Feb | tair\_Mar | tair\_Apr | tair\_May | tair\_Jun | tair\_Jul | tair\_Aug | tair\_Sep | tair\_Oct | tair\_Nov | tair\_Dec | tair\_min | tair\_max | tair\_mean |  sm\_Jan |  sm\_Feb |  sm\_Mar |  sm\_Apr |  sm\_May |  sm\_Jun |  sm\_Jul |  sm\_Aug |  sm\_Sep |   sm\_Oct |  sm\_Nov |  sm\_Dec |   sm\_min |  sm\_max | sm\_mean | random\_lev\_x\_0 | random\_lev\_x\_1 | X0\_random\_catB | X1\_random\_catB | transmission.mode.to.humans.simplified.numeric |
+| ----------------------: | ---------------------------: | ------------------------: | ---------------------------: | ---------------------: | ---------------------: | -----------------: | ---------------------: | ------------------------: | --------------------------------: | ---------------------------: | -----------------: | --------------------: | --------------------: | --------: | ---------: | --------: | ---------: | --------: | --------: | --------: | --------: | ---------: | ---------: | ---------: | ---------: | --------: | --------: | ---------: | -------: | -------: | -------: | -------: | --------: | --------: | --------: | -------: | -------: | -------: | -------: | -------: | --------: | -------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | --------: | ---------: | -------: | -------: | -------: | -------: | -------: | -------: | -------: | -------: | -------: | --------: | -------: | -------: | --------: | -------: | -------: | ----------------: | ----------------: | ---------------: | ---------------: | :--------------------------------------------- |
+|                 24.5200 |                      96.6900 |                   17.5442 |                      49.1900 |                21.7695 |              0.0004480 |             5.3400 |                 2.0000 |                    1.8463 |                         3211.8100 |                     170.3800 |               7.59 |               26.2705 |              915499.4 |  28.31082 |  27.723485 |  34.27143 |  44.128143 |  66.95119 | 73.531295 | 62.098096 | 56.526708 |  38.720682 |  37.599996 |  31.717838 |  30.775334 | 27.723485 |  73.53129 |  44.362918 | 28.58598 | 26.91947 | 21.58503 | 14.88231 |  8.715245 |  4.515011 |  4.111697 |  7.13683 | 13.47646 | 19.46592 | 24.45991 | 27.37648 |  4.111697 | 28.58598 |  16.76919 |  5.519149 |  5.697453 |  5.384407 |  4.884469 |  4.573697 |  4.114451 |  3.908027 |  3.987334 |  4.174561 |  4.407915 |  4.648671 |  5.110917 |  3.908027 |  5.697453 |  4.715466 |  14.55520 |  14.29700 |  12.01976 |  8.640507 |  5.501658 |  3.103671 |  2.341873 |  3.339478 |  5.492649 |  8.108782 |  10.47671 |  12.99943 |  3.908027 |  5.697453 |   4.715466 | 19.20338 | 19.71329 | 20.81875 | 23.66856 | 27.04893 | 30.57124 | 32.50592 | 32.31894 | 29.18584 | 26.112100 | 23.00708 | 20.54002 | 19.203377 | 32.50592 | 32.50592 |                 0 |                 1 |        0.4054619 |        0.0049153 | 1                                              |
+|               2829.4998 |                     565.7687 |                    0.0000 |                    1877.3555 |               110.5333 |              0.5412771 |             1.6137 |                 1.8908 |                  336.6737 |                           24.1184 |                     510.6760 |               6.08 |              136.5090 |             3325550.3 |   9.22375 |   7.489283 |   9.08573 |   5.617738 |   3.01725 |  2.104062 |  3.043558 |  3.949642 |   1.332755 |   2.356264 |   5.221854 |   6.813192 |  1.332755 |   9.22375 |   4.937923 | 28.20398 | 31.71826 | 37.33633 | 42.43161 | 46.645516 | 47.704967 | 46.985238 | 47.39723 | 46.89395 | 43.18612 | 35.90956 | 29.86042 | 28.203976 | 47.70497 |  40.35610 |  6.147237 |  5.987151 |  6.266517 |  6.904232 |  7.377973 |  7.646688 |  9.260465 |  9.985638 |  8.643908 |  7.293791 |  7.128724 |  6.350327 |  5.987151 |  9.985638 |  7.497532 |  16.18861 |  18.27081 |  21.73687 | 25.760599 | 29.605409 | 31.741909 | 32.193576 | 31.913751 | 29.885090 | 26.095114 |  21.20912 |  17.52866 |  5.987151 |  9.985638 |   7.497532 | 15.04361 | 14.50310 | 13.30863 | 13.23085 | 11.94883 | 10.28096 | 10.02969 | 10.90574 | 10.26370 |  9.867668 | 11.96622 | 14.50156 |  9.867668 | 15.04361 | 15.04361 |                 1 |                 0 |      \-0.2316543 |        0.3440167 | 0                                              |
+|                 25.2700 |                      93.6229 |                   13.8374 |                      39.9500 |                23.0000 |              0.0023669 |             4.5900 |                 1.2500 |                    1.7304 |                         7679.6500 |                      61.8700 |               7.55 |               14.4400 |             1071237.3 | 113.84046 | 119.704953 | 119.12531 | 115.958810 |  74.88290 | 54.659143 | 52.513019 | 53.435588 |  73.488271 | 113.645333 | 112.256458 | 114.586686 | 52.513019 | 119.70495 |  93.174745 | 32.98679 | 30.13573 | 27.26056 | 22.74485 | 17.386291 | 13.650089 | 13.346165 | 17.01557 | 21.81574 | 26.24403 | 30.73434 | 32.93935 | 13.346165 | 32.98679 |  23.85496 | 11.176039 | 11.609481 | 10.880545 |  9.343283 |  7.918394 |  6.836218 |  6.434379 |  6.820314 |  7.294557 |  8.801712 |  9.283485 | 10.189930 |  6.434379 | 11.609481 |  8.902300 |  24.82721 |  23.91221 |  21.56786 | 17.855692 | 14.026568 | 11.821396 | 11.156670 | 13.045397 | 14.807975 | 17.832505 |  20.45378 |  23.23807 |  6.434379 | 11.609481 |   8.902300 | 23.39150 | 24.66699 | 25.33715 | 26.70206 | 27.23514 | 27.67481 | 28.02176 | 27.51339 | 27.45799 | 27.838227 | 26.03877 | 23.78591 | 23.391504 | 28.02176 | 28.02176 |                 1 |                 0 |        0.0655962 |        0.3440167 | 0                                              |
+|                 39.8400 |                     105.0425 |                   13.9150 |                      53.1377 |                24.2746 |              0.0021985 |             3.4965 |                 2.7275 |                    2.3447 |                          442.8800 |                      77.6343 |               5.71 |               25.0823 |             1450284.1 | 181.92703 | 123.563358 | 135.82253 |  81.411104 |  61.06821 | 48.565488 | 43.472220 | 36.218955 |  56.636942 |  86.888544 | 149.816904 | 187.424542 | 36.218955 | 187.42454 |  99.401319 | 29.61312 | 29.24225 | 28.35204 | 26.91959 | 24.690873 | 23.383038 | 23.455310 | 25.92489 | 29.11978 | 31.58378 | 30.93892 | 30.17739 | 23.383038 | 31.58378 |  27.78342 | 15.253551 | 15.218111 | 15.186534 | 14.176742 | 12.446706 | 11.593683 | 10.802654 | 10.620593 | 11.371256 | 12.774451 | 14.129207 | 15.028975 | 10.620593 | 15.253551 | 13.176901 |  22.86748 |  23.01250 |  22.52131 | 21.427845 | 19.457962 | 18.554038 | 18.198185 | 19.240473 | 20.652976 | 21.977138 |  22.03052 |  22.68594 | 10.620593 | 15.253551 |  13.176901 | 30.59439 | 29.52644 | 29.84110 | 28.55350 | 26.57910 | 25.00786 | 23.23869 | 20.81496 | 21.04566 | 23.661946 | 28.36437 | 30.56520 | 20.814964 | 30.59439 | 30.59439 |                 1 |                 0 |      \-0.3829917 |        0.1712453 | 0                                              |
+|                 32.9900 |                     113.5422 |                   15.1897 |                      67.1249 |                23.0000 |              0.0011945 |             3.7700 |                 5.6809 |                    2.9400 |                         4294.5151 |                      28.0700 |               6.35 |               26.0000 |              139180.2 |  54.81765 |  51.487822 |  58.09069 |  46.221657 |  28.74164 | 21.902471 | 20.747185 | 20.235605 |  30.494461 |  48.744764 |  43.943359 |  48.245397 | 20.235605 |  58.09069 |  39.472725 | 39.11428 | 35.13561 | 29.94465 | 21.86327 | 14.605812 | 10.181797 | 10.095315 | 14.65974 | 22.11152 | 28.48289 | 35.20299 | 38.61890 | 10.095315 | 39.11428 |  25.00140 |  6.813742 |  7.341666 |  6.940662 |  6.016681 |  5.430431 |  4.348466 |  4.120788 |  4.203281 |  4.430351 |  5.268101 |  5.468820 |  5.962599 |  4.120788 |  7.341666 |  5.557717 |  24.42841 |  23.09359 |  20.37397 | 15.565086 | 11.507261 |  8.939542 |  8.235375 | 10.044128 | 12.665910 | 16.042906 |  19.61574 |  22.86590 |  4.120788 |  7.341666 |   5.557717 | 15.96000 | 17.64192 | 18.35239 | 19.84295 | 21.11792 | 22.20007 | 22.63420 | 21.85158 | 20.58712 | 20.240094 | 17.48120 | 15.67617 | 15.676172 | 22.63420 | 22.63420 |                 1 |                 0 |        0.0655962 |        0.1712453 | 1                                              |
+|                 12.9211 |                      75.0000 |                   14.4172 |                      21.8529 |                24.9852 |              0.0033782 |             3.0462 |                 3.0195 |                    1.4101 |                          463.5466 |                      69.9069 |               5.56 |               24.1829 |              619760.0 | 200.32987 | 166.339620 | 141.83527 | 117.479673 | 112.15717 | 88.470408 | 77.524053 | 69.088452 | 114.305017 | 156.748414 | 155.672671 | 187.779250 | 69.088452 | 200.32987 | 132.310822 | 29.06328 | 29.02966 | 28.00098 | 25.77995 | 21.704420 | 20.011626 | 20.276574 | 23.70124 | 26.89837 | 29.25218 | 30.18127 | 30.04428 | 20.011626 | 30.18127 |  26.16199 | 15.638373 | 15.623903 | 14.934093 | 13.232093 | 10.889836 | 10.277595 |  9.465909 |  9.593937 | 10.585994 | 12.659794 | 13.676500 | 14.989798 |  9.465909 | 15.638373 | 12.619436 |  22.75969 |  22.82634 |  21.87057 | 20.056388 | 16.771751 | 15.954032 | 15.541023 | 17.397634 | 18.940624 | 20.821728 |  21.22616 |  22.42923 |  9.465909 | 15.638373 |  12.619436 | 33.80152 | 33.37069 | 32.88799 | 32.03459 | 31.80248 | 31.44223 | 30.56235 | 28.78862 | 28.97761 | 31.307376 | 32.68340 | 33.34642 | 28.788618 | 33.80152 | 33.80152 |                 1 |                 0 |      \-0.2316543 |        0.3440167 | 0                                              |
+
+``` r
+model_vars <- score_frame$varName[score_frame$recommended]
+
+model <- glmnet(x = as.matrix(d_prepared[, model_vars, drop=FALSE]), 
+               y = d_prepared[['transmission.mode.to.humans.simplified.numeric']],
+               family = 'binomial')
+```
+
+# convenience functions for predicting and adding predictions to original data frame
+
+``` r
+# convenience functions for predicting and adding predictions to original data frame
+add_predictions <- function(d_prepared, model_vars, model) {
+  preds <- predict(
+    model, 
+    newx = as.matrix(d_prepared[, model_vars, drop=FALSE]),
+    s = min(model$lambda),  # in practice we would cross-validated for a good s
+    type = 'response')
+  preds <- as.data.frame(preds[,1])
+  preds$prob_on_predicted_class <- apply(preds, 1, max)
+  preds$predict <- NA_character_
+  for(col in colnames(preds)) {
+    alter = is.na(preds$predict) & preds[[col]] >= preds$prob_on_predicted_class
+    preds$predict[alter] <- col
+  }
+  d_prepared <- cbind(d_prepared, preds)
+  d_prepared
+}
+
+add_value_by_column <- function(d_prepared, name_column, new_column) {
+  vals = unique(d_prepared[[name_column]])
+  d_prepared[[new_column]] <- NA_real_
+  for(col in vals) {
+    match <- d_prepared[[name_column]] == col
+    d_prepared[[new_column]][match] <- d_prepared[match, col, drop=TRUE]
+  }
+  d_prepared
+}
+```
+
+\#\#predict – binomial
+
+``` r
+# now predict
+d_prepared <- add_predictions(d_prepared, model_vars, model)
+
+name_column ='transmission.mode.to.humans.simplified.numeric'
+vals = unique(d_prepared[[name_column]])
+new_column = 'prob_on_correct_class'
+d_prepared[[new_column]] <- NA_real_
+##this code gets an error. 
+# for(col in vals) {
+#     match <- d_prepared[[name_column]] == col
+#     d_prepared[[new_column]][match] <- d_prepared[match, col, drop=TRUE]
+# }
+
+# 
+# to_print <- c('transmission.mode.to.humans.simplified.numeric', 'predict', 'large','liminal','small', 'prob_on_predicted_class', 'prob_on_correct_class')
+# d_prepared[, to_print, drop = FALSE] %.>%
+#   head(.) %.>%
+#   knitr::kable(.)
+
+# table(truth = d_prepared$transmission.mode.to.humans.simplified.numeric, prediction = d_prepared$predict)
+```

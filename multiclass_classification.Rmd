@@ -740,6 +740,17 @@ add_value_by_column <- function(d_prepared, name_column, new_column) {
 ```{r}
 # now predict
 d_prepared <- add_predictions(d_prepared, model_vars, model)
+
+# name_column = 'transmission.mode.to.humans.simplified.numeric'
+# vals = unique(d_prepared[[name_column]])
+# d_prepared[[new_column]] <- NA_real_
+#   for(col in vals) {
+#     match <- d_prepared[[name_column]] == col
+#     d_prepared[[new_column]][match] <- d_prepared[match, col, drop=TRUE]
+#   }
+# 
+
+
 d_prepared <- add_value_by_column(d_prepared, 'transmission.mode.to.humans.simplified.numeric', 'prob_on_correct_class')
 
 to_print <- c('transmission.mode.to.humans.simplified.numeric', 'predict', 'large','liminal','small', 'prob_on_predicted_class', 'prob_on_correct_class')
@@ -752,3 +763,98 @@ table(truth = d_prepared$transmission.mode.to.humans.simplified.numeric, predict
 
 
 
+###prepare data with vtreat -- binomial (excluding direct)
+```{r}
+dat = dat_backup
+dat = subset(dat, transmission.mode.to.humans.simplified.numeric !=0)
+dat$transmission.mode.to.humans.simplified.numeric= as.numeric(as.character(dat$transmission.mode.to.humans.simplified.numeric))-1
+dat$random = factor(sample(c(0,1), size = dim(dat)[1], replace = TRUE))
+transform_design = vtreat::mkCrossFrameMExperiment(
+    d = dat,                                         # data to learn transform from
+    vars = setdiff(colnames(dat), c('transmission.mode.to.humans.simplified.numeric')),     # columns to transform
+    y_name = 'transmission.mode.to.humans.simplified.numeric'# outcome variable
+)
+transform <- transform_design$treat_m
+d_prepared <- transform_design$cross_frame
+score_frame <- transform_design$score_frame
+score_frame$recommended <- score_frame$varMoves & (score_frame$sig < 1/nrow(score_frame))
+
+knitr::kable(score_frame)
+```
+
+##examining variables -- binomial
+```{r}
+good_new_variables = unique(score_frame[score_frame[['recommended']], 'varName', drop = TRUE])
+good_new_variables
+
+```
+
+###Using the Prepared Data in a Model -- binomial
+```{r}
+d_prepared %.>%
+  head(.) %.>%
+  knitr::kable(.)
+model_vars <- score_frame$varName[score_frame$recommended]
+
+model <- glmnet(x = as.matrix(d_prepared[, model_vars, drop=FALSE]), 
+               y = d_prepared[['transmission.mode.to.humans.simplified.numeric']],
+               family = 'binomial')
+```
+
+
+# convenience functions for predicting and adding predictions to original data frame
+```{r}
+# convenience functions for predicting and adding predictions to original data frame
+add_predictions <- function(d_prepared, model_vars, model) {
+  preds <- predict(
+    model, 
+    newx = as.matrix(d_prepared[, model_vars, drop=FALSE]),
+    s = min(model$lambda),  # in practice we would cross-validated for a good s
+    type = 'response')
+  preds <- as.data.frame(preds[,1])
+  preds$prob_on_predicted_class <- apply(preds, 1, max)
+  preds$predict <- NA_character_
+  for(col in colnames(preds)) {
+    alter = is.na(preds$predict) & preds[[col]] >= preds$prob_on_predicted_class
+    preds$predict[alter] <- col
+  }
+  d_prepared <- cbind(d_prepared, preds)
+  d_prepared
+}
+
+add_value_by_column <- function(d_prepared, name_column, new_column) {
+  vals = unique(d_prepared[[name_column]])
+  d_prepared[[new_column]] <- NA_real_
+  for(col in vals) {
+    match <- d_prepared[[name_column]] == col
+    d_prepared[[new_column]][match] <- d_prepared[match, col, drop=TRUE]
+  }
+  d_prepared
+}
+```
+
+
+##predict -- binomial
+```{r}
+# now predict
+d_prepared <- add_predictions(d_prepared, model_vars, model)
+
+name_column ='transmission.mode.to.humans.simplified.numeric'
+vals = unique(d_prepared[[name_column]])
+new_column = 'prob_on_correct_class'
+d_prepared[[new_column]] <- NA_real_
+##this code gets an error. 
+# for(col in vals) {
+#     match <- d_prepared[[name_column]] == col
+#     d_prepared[[new_column]][match] <- d_prepared[match, col, drop=TRUE]
+# }
+
+# 
+# to_print <- c('transmission.mode.to.humans.simplified.numeric', 'predict', 'large','liminal','small', 'prob_on_predicted_class', 'prob_on_correct_class')
+# d_prepared[, to_print, drop = FALSE] %.>%
+#   head(.) %.>%
+#   knitr::kable(.)
+
+# table(truth = d_prepared$transmission.mode.to.humans.simplified.numeric, prediction = d_prepared$predict)
+
+```
