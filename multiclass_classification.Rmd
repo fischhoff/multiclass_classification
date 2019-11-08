@@ -22,7 +22,7 @@ pkgTest <- function(x)
 }
 neededPackages <- c("xgboost", #the main algorithm 
                     "archdata",   #for the sample dataset #
-                    "caret", #for the confusionmatrix() function (also needs e1071 package)
+                    "caret", #for the confusionMatrix() function (also needs e1071 package)
                     "dplyr",# for some data preparation
                     "Ckmeans.1d.dp",# for xgb.ggplot.importance
                     "stringr",#str_replace
@@ -39,126 +39,6 @@ for (package in neededPackages){pkgTest(package)}
 ```
 
 
-Here is where we:
-
-Load the RBGlass1 dataset
-convert the variable Site from a factor to numeric
-Simulate a third class (furnace) from the data
-Bind the new class to the original data
-Subtract 1 from the Site names so they start at 0
-Print out a summary()
-The XGBoost algorithm requires that the class labels (Site names) start at 0 and increase sequentially to the maximum number of classes. This is a bit of an inconvenience as you need to keep track of what Site name goes with which label. Also, you need to be very careful when you add or remove a 1 to go from the zero based labels to the 1 based labels.
-
-The simulated class is created by taking the data from Site == 1, creating an offset ./10 and adding that back to the same value with some random normal noise rnorm(1,.,.*0.1) proportional to the value. You can pretty much ignore this.
-
-```{r}
-# set random seed
-set.seed(717)
-data(RBGlass1)
-dat <- RBGlass1 
-dat$Site <- as.numeric(dat$Site)
-dat_add <- dat[which(dat$Site == 1),] %>%
-  rowwise() %>%
-  mutate_each(funs(./10 + rnorm(1,.,.*0.1))) %>%
-  mutate_each(funs(round(.,2))) %>%
-  mutate(Site = 3)
-```
-
-```{r}
-dat <- rbind(dat, dat_add) %>%
-  mutate(Site = Site - 1)
-
-summary(dat)
-```
-
-####train and test split
-
-```{r}
-# Make split index
-train_index <- sample(1:nrow(dat), nrow(dat)*0.75)
-# Full data set
-data_variables <- as.matrix(dat[,-1])
-data_label <- dat[,"Site"]
-data_matrix <- xgb.DMatrix(data = as.matrix(dat), label = data_label)
-# split train data and make xgb.DMatrix
-train_data   <- data_variables[train_index,]
-train_label  <- data_label[train_index]
-train_matrix <- xgb.DMatrix(data = train_data, label = train_label)
-# split test data and make xgb.DMatrix
-test_data  <- data_variables[-train_index,]
-test_label <- data_label[-train_index]
-test_matrix <- xgb.DMatrix(data = test_data, label = test_label)
-```
-
-
-####K-folds Cross-validation to Estimate Error
-set the objective to multi:softprob and the eval_metric to mlogloss. These two parameters tell the XGBoost algorithm that we want to to probabilistic classification and use a multiclass logloss as our evaluation metric. Use of the multi:softprob objective also requires that we tell is the number of classes we have with num_class
-```{r}
-numberOfClasses <- length(unique(dat$Site))
-xgb_params <- list("objective" = "multi:softprob",
-                   "eval_metric" = "mlogloss",
-                   "num_class" = numberOfClasses)
-nround    <- 50 # number of XGBoost rounds
-cv.nfold  <- 5
-
-# Fit cv.nfold * cv.nround XGB models and save OOF predictions
-cv_model <- xgb.cv(params = xgb_params,
-                   data = train_matrix, 
-                   nrounds = nround,
-                   nfold = cv.nfold,
-                   verbose = FALSE,
-                   prediction = TRUE)
-```
-
-
-####Assess Out-of-Fold Prediction Error
-```{r}
-OOF_prediction <- data.frame(cv_model$pred) %>%
-  mutate(max_prob = max.col(., ties.method = "last"),
-         label = train_label + 1)
-head(OOF_prediction)
-```
-
-#### confusion matrix
-```{r}
-# confusion matrix
-confusionMatrix(factor(OOF_prediction$max_prob),
-                factor(OOF_prediction$label),
-                mode = "everything")
-```
-
-###Train Full Model and Assess Test Set Error
-```{r}
-bst_model <- xgb.train(params = xgb_params,
-                       data = train_matrix,
-                       nrounds = nround)
-
-# Predict hold-out test set
-test_pred <- predict(bst_model, newdata = test_matrix)
-test_prediction <- matrix(test_pred, nrow = numberOfClasses,
-                          ncol=length(test_pred)/numberOfClasses) %>%
-  t() %>%
-  data.frame() %>%
-  mutate(label = test_label + 1,
-         max_prob = max.col(., "last"))
-# confusion matrix of test set
-confusionMatrix(factor(test_prediction$max_prob),
-                factor(test_prediction$label),
-                mode = "everything")
-```
-
-###Variable Importance
-```{r}
-# get the feature real names
-names <-  colnames(dat[,-1])
-# compute feature importance matrix
-importance_matrix = xgb.importance(feature_names = names, model = bst_model)
-head(importance_matrix)
-
-# plot
-gp = xgb.ggplot.importance(importance_matrix)
-print(gp) 
-```
 ###load and merge the 1) rodent trait data and 2) rodent - disease data 3) disease -- tx mode data 4) climate data
 ```{r}
 traits = read.csv("dfPanRodent_imputed.csv")
@@ -173,10 +53,13 @@ dx_host = read.csv("host - rodent-disease pairs from GIDEON.csv")
 dx_host_traits = merge(traits, dx_host)
 
 #host - rodent-disease transmission modes_20190413.csv
-modes = read.csv("host - rodent-disease transmission modes_20190413.csv")
+modes = read.csv("host - rodent-disease transmission modes_20191107 - data.csv")
 names(modes)[names(modes)=="Zoonoses.with.rodent.reservoirs"]="Matches"
-modes = modes[,c("Matches",
+modes = modes[,c("Matches", "Pathogen.type",
+                 # "foodborne","waterborne",
+                 # "mosquito.borne","tick.borne",
                  "transmission.mode.to.humans.simplified")]
+
 dx_modes_host_traits = merge(dx_host_traits,
                              modes, by = "Matches")
 
@@ -193,16 +76,51 @@ names(xclim_all)[names(xclim_all)=="binomial"]="Pan"
 
 dx_modes_host_traits_climate = merge(dx_modes_host_traits,xclim_all)
 #remove fields no longer needed
-rm = c("Matches", "Pan", "X",
+rm = c( "Pan", "X",
        "MSW05_Order", "MSW05_Family","MSW05_Genus",                           
  "MSW05_Species","MSW05_Binomial","Flag" , "IUCN_binom")
 keep = setdiff(names(dx_modes_host_traits_climate),rm)
 dat = dx_modes_host_traits_climate[,keep]
+save(dat, file = "dat.Rdata")
+
 ```
+
+
+###convert to 0_1 the info we have on pathogen type
+```{r}
+load("dat.Rdata")
+
+dat$Pathogen.type.protozoa = 0
+dat$Pathogen.type.bacteria = 0
+dat$Pathogen.type.helminth = 0
+dat$Pathogen.type.virus = 0
+dat$Pathogen.type.fungus = 0
+i = which(dat$Pathogen.type == "Bacteria")
+dat$Pathogen.type.bacteria[i]=1
+
+i = which(dat$Pathogen.type == "Virus")
+dat$Pathogen.type.virus[i]=1
+
+i = which(dat$Pathogen.type == "Protozoa")
+dat$Pathogen.type.protozoa[i]=1
+
+i = which(dat$Pathogen.type == "Fungus")
+dat$Pathogen.type.fungus[i]=1
+
+i = which(dat$Pathogen.type == "Helminth")
+dat$Pathogen.type.helminth[i]=1
+rm = "Pathogen.type"
+keep = setdiff(names(dat), rm)
+dat= dat[,keep]
+save(dat, file = "dat.Rdata")
+
+ 
+```
+
 
 ##change classes from 0 to n-1-- rodents
 ```{r}
-
+load("dat.Rdata")
 dat$transmission.mode.to.humans.simplified.numeric = as.numeric(factor(dat$transmission.mode.to.humans.simplified))
 #direct: 1
 #environmental: 2
@@ -213,465 +131,23 @@ dat = dat[,keep]
 dat <- dat %>%
   mutate(transmission.mode.to.humans.simplified.numeric =  transmission.mode.to.humans.simplified.numeric- 1)
 
-summary(dat)
+#summary(dat)
 #direct: 0
 #environmental: 1
 #vector: 2
 
-
+save(dat, file = "dat.Rdata")
 ```
 
 
-####train and test split-- rodents
-
-```{r}
-# Make split index
-train_index <- sample(1:nrow(dat), nrow(dat)*0.7)
-# Full data set
-label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
-data_variables <- as.matrix(dat[,-label_col])
-data_label <- dat[,"transmission.mode.to.humans.simplified.numeric"]
-data_matrix <- xgb.DMatrix(data = as.matrix(dat), label = data_label)
-# split train data and make xgb.DMatrix
-train_data   <- data_variables[train_index,]
-train_label  <- data_label[train_index]
-train_matrix <- xgb.DMatrix(data = train_data, label = train_label)
-# split test data and make xgb.DMatrix
-test_data  <- data_variables[-train_index,]
-test_label <- data_label[-train_index]
-test_matrix <- xgb.DMatrix(data = test_data, label = test_label)
-```
-
-
-####K-folds Cross-validation to Estimate Error-- rodents
-set the objective to multi:softprob and the eval_metric to mlogloss. These two parameters tell the XGBoost algorithm that we want to to probabilistic classification and use a multiclass logloss as our evaluation metric. Use of the multi:softprob objective also requires that we tell is the number of classes we have with num_class
-```{r}
-numberOfClasses <- length(unique(dat$transmission.mode.to.humans.simplified.numeric))
-xgb_params <- list("objective" = "multi:softprob",
-                   "eval_metric" = "mlogloss",
-                   "num_class" = numberOfClasses)
-nround    <- 50 # number of XGBoost rounds
-cv.nfold  <- 5
-
-# Fit cv.nfold * cv.nround XGB models and save OOF predictions
-cv_model <- xgb.cv(params = xgb_params,
-                   data = train_matrix, 
-                   nrounds = nround,
-                   nfold = cv.nfold,
-                   verbose = FALSE,
-                   prediction = TRUE)
-```
-
-
-####Assess Out-of-Fold Prediction Error-- rodents
-```{r}
-OOF_prediction <- data.frame(cv_model$pred) %>%
-  mutate(max_prob = max.col(., ties.method = "last"),
-         label = train_label + 1)
-head(OOF_prediction)
-```
-#### confusion matrix-- rodents
-```{r}
-# confusion matrix
-confusionMatrix(factor(OOF_prediction$max_prob),
-                factor(OOF_prediction$label),
-                mode = "everything")
-```
-###Train Full Model and Assess Test Set Error-- rodents
-```{r}
-bst_model <- xgb.train(params = xgb_params,
-                       data = train_matrix,
-                       nrounds = nround)
-
-# Predict hold-out test set
-test_pred <- predict(bst_model, newdata = test_matrix)
-test_prediction <- matrix(test_pred, nrow = numberOfClasses,
-                          ncol=length(test_pred)/numberOfClasses) %>%
-  t() %>%
-  data.frame() %>%
-  mutate(label = test_label + 1,
-         max_prob = max.col(., "last"))
-# confusion matrix of test set
-confusionMatrix(factor(test_prediction$max_prob),
-                factor(test_prediction$label),
-                mode = "everything")
-```
-###Variable Importance-- rodents
-```{r var_imp}
-# get the feature real names
-label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
-names <-  colnames(dat[,-label_col])
-# compute feature importance matrix
-importance_matrix = xgb.importance(feature_names = names, model = bst_model)
-head(importance_matrix)
-
-# plot
-gp = xgb.ggplot.importance(importance_matrix, top_n = 20)
-print(gp) 
-```
-
-###randomForest
-```{r}
-#dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
-
-#remove rows which have empty values
-row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
-predictors_no_NA <- dat[!row.has.na, ]
-dat = predictors_no_NA
-dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
-# get the feature real names
-label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
-
-names <-  colnames(dat[,-label_col])
-y_col = label_col
-
-
-model<-as.formula(paste(colnames(dat)[y_col], "~",
-                        paste(names,collapse = "+"),
-                        sep = ""))
-
-
-#get train and test
-DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
-                        p = 0.8,
-                        list = FALSE)
-Train = dat[DP,]
-Test = dat[-DP,]
-
-model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE)
-print(model.rf)
-#get predicted
-Test$pred = predict(model.rf, Test, type="response")
-
-table(Test$transmission.mode.to.humans.simplified.numeric, 
-      Test$pred)
-
-varImpPlot(model.rf,type=2, n.var = 20)
-
-```
-
-
-###randomForest with only more abundant classes, sampsize proportional
-```{r}
-dat_backup = dat
-#remove rows which have empty values
-row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
-predictors_no_NA <- dat[!row.has.na, ]
-dat = predictors_no_NA
-dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
-
-dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
-
-# get the feature real names
-label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
-
-names <-  colnames(dat[,-label_col])
-y_col = label_col
-
-
-model<-as.formula(paste(colnames(dat)[y_col], "~",
-                        paste(names,collapse = "+"),
-                        sep = ""))
-
-
-#get train and test
-DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
-                        p = 0.8,
-                        list = FALSE)
-Train = dat[DP,]
-Test = dat[-DP,]
-
-mySampSize <- ceiling(table(Train$transmission.mode.to.humans.simplified.numeric) * 0.632)
-
-model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE,
-                        sampsize = mySampSize,
-                        # strata=as.factor(Train[,"transmission.mode.to.humans.simplified.numeric"])
-                        )
-print(model.rf)
-#get predicted
-Test$pred = predict(model.rf, Test, type="response")
-
-table(Test$transmission.mode.to.humans.simplified.numeric, 
-      Test$pred)
-
-varImpPlot(model.rf,type=2, n.var = 20)
-
-```
-
-
-
-###randomForest with only more abundant classes, sampsize equal
-```{r}
-dat = dat_backup
-#remove rows which have empty values
-row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
-predictors_no_NA <- dat[!row.has.na, ]
-dat = predictors_no_NA
-dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
-
-dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
-
-# get the feature real names
-label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
-
-names <-  colnames(dat[,-label_col])
-y_col = label_col
-
-
-model<-as.formula(paste(colnames(dat)[y_col], "~",
-                        paste(names,collapse = "+"),
-                        sep = ""))
-
-
-#get train and test
-DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
-                        p = 0.8,
-                        list = FALSE)
-Train = dat[DP,]
-Test = dat[-DP,]
-
-mySampSize <- c(15,15)
-
-model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE,
-                        sampsize = mySampSize,
-                        # strata=as.factor(Train[,"transmission.mode.to.humans.simplified.numeric"])
-                        )
-print(model.rf)
-#get predicted
-Test$pred = predict(model.rf, Test, type="response")
-
-table(Test$transmission.mode.to.humans.simplified.numeric, 
-      Test$pred)
-
-varImpPlot(model.rf,type=2, n.var = 20)
-
-```
-
-
-###randomForest with all  classes, classwt proportional
-```{r}
-dat = dat_backup
-#remove rows which have empty values
-row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
-predictors_no_NA <- dat[!row.has.na, ]
-dat = predictors_no_NA
-# dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
-
-dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
-
-tab = table(dat$transmission.mode.to.humans.simplified.numeric)
-tab_frac = tab/dim(dat)[1]
-tab_frac= c(tab_frac)
-# get the feature real names
-label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
-
-names <-  colnames(dat[,-label_col])
-y_col = label_col
-
-
-model<-as.formula(paste(colnames(dat)[y_col], "~",
-                        paste(names,collapse = "+"),
-                        sep = ""))
-
-
-#get train and test
-DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
-                        p = 0.8,
-                        list = FALSE)
-Train = dat[DP,]
-Test = dat[-DP,]
-
-mySampSize <- c(15,15)
-
-model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE,
-                        classwt = tab_frac,
-                        # strata=as.factor(Train[,"transmission.mode.to.humans.simplified.numeric"])
-                        )
-print(model.rf)
-#get predicted
-Test$pred = predict(model.rf, Test, type="response")
-
-table(Test$transmission.mode.to.humans.simplified.numeric, 
-      Test$pred)
-
-varImpPlot(model.rf,type=2, n.var = 20)
-
-```
-
-
-###randomForest with all  classes, classwt inversely proportional
-```{r rf_inverse}
-dat = dat_backup
-#remove rows which have empty values
-row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
-predictors_no_NA <- dat[!row.has.na, ]
-dat = predictors_no_NA
-# dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
-
-dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
-
-tab = table(dat$transmission.mode.to.humans.simplified.numeric)
-tab_frac = tab/dim(dat)[1]
-tab_frac= c(tab_frac)
-# get the feature real names
-label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
-
-names <-  colnames(dat[,-label_col])
-y_col = label_col
-
-
-model<-as.formula(paste(colnames(dat)[y_col], "~",
-                        paste(names,collapse = "+"),
-                        sep = ""))
-
-
-#get train and test
-DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
-                        p = 0.8,
-                        list = FALSE)
-Train = dat[DP,]
-Test = dat[-DP,]
-
-mySampSize <- c(15,15)
-
-model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE,
-                        classwt = c(tab_frac[3], tab_frac[2], tab_frac[1]),
-                        # strata=as.factor(Train[,"transmission.mode.to.humans.simplified.numeric"])
-                        )
-print(model.rf)
-#get predicted
-Test$pred = predict(model.rf, Test, type="response")
-
-table(Test$transmission.mode.to.humans.simplified.numeric, 
-      Test$pred)
-
-varImpPlot(model.rf,type=2, n.var = 20)
-
-```
-
-###GBM with two most common classes
-```{r gbm}
-dat = dat_backup
-
-dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
-
-ind1 = which(dat$transmission.mode.to.humans.simplified.numeric==1)
-dat$transmission.mode.to.humans.simplified.numeric[ind1]=0
-
-ind2 = which(dat$transmission.mode.to.humans.simplified.numeric==2)
-dat$transmission.mode.to.humans.simplified.numeric[ind2]=1
-
-# get the feature real names
-label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
-
-names <-  colnames(dat[,-label_col])
-y_col = label_col
-
-
-model<-as.formula(paste(colnames(dat)[y_col], "~",
-                        paste(names,collapse = "+"),
-                        sep = ""))
-
-
-#get train and test
-dat$transmission.mode.to.humans.simplified.numeric = as.numeric(as.character(dat$transmission.mode.to.humans.simplified.numeric))
-DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
-                        p = 0.8,
-                        list = FALSE)
-Train = dat[DP,]
-Test = dat[-DP,]
-
-ptm<-proc.time()
-
-n.trees = 10000
-shrinkage = 0.001#final version should be 0.001
-cv.folds = 10#final version should be 10
-gbmtest<- gbm(model,
-              data=Train,
-              distribution="bernoulli",
-              n.trees=n.trees,
-              shrinkage=shrinkage,
-              interaction.depth=3,
-              bag.fraction=0.50,
-              train.fraction=1,
-              n.minobsinnode=5,
-              cv.folds=cv.folds,
-              keep.data=TRUE,
-              verbose=TRUE,
-              n.cores=NULL)
-
-save(gbmtest, file = "gbmtest.Rdata")
-#check performance using 5-fold cross-validation
-best.iter <- gbm.perf(gbmtest,method="cv",plot.it=FALSE) #this gives you the optimal number of trees based on cv performance, other methods will over or under predict
-print(best.iter)
-
-gbm_error = data.frame(train.error = gbmtest$train.error,
-                       trees = seq(1,n.trees))
-plot <- ggplot(gbm_error, aes(x = trees, y = train.error))+
-  geom_line()
-plot
-ggsave(filename = "deviance_enviro_vector.jpg",
-       plot = plot)
-#Stop the clock
-(proc.time()-ptm)/60
-
-load("gbmtest.Rdata")
-best.iter <- gbm.perf(gbmtest,method="cv",plot.it=FALSE) #this gives you the optimal number of trees based on cv performance, other methods 
-# output predictions on the TRAINING SET
-output<-predict(gbmtest, 
-                newdata=Train, 
-                n.trees=best.iter, 
-                type="response") 
-
-output<-cbind(output,Train$transmission.mode.to.humans.simplified.numeric)
-colnames(output)<-c("output","data")
-rownames(output)<-rownames(Train)
-output<-output[order(-output[,1]),]
-
-# # AUC for Bernoulli distributed responses
-par(mar = c(1,1,1,1))
-auc=colAUC(output[,1],output[,2],
-           plotROC = TRUE)
-
-print(auc)
-pred<-prediction(output[,1],output[,2])
-perf<-performance(pred,"tpr","fpr")
-
-par(mar = c(1,1,1,1))
-plot(perf,colorize=TRUE,main="ROC full model")
-abline(a=0, b= 1)
-
-# output predictions on the Test SET
-```
-
-###plot relative influence
-```{r gbm_rel_inf}
-
-load("gbmtest.Rdata")
-x = summary(gbmtest)
-# 
-x.df= data.frame(variable = x$var,
-                 relative.influence = x$rel.inf)
-
-x.df.0 = subset(x.df, relative.influence==0)
-dim(x.df.0)[1]
-x.df = subset(x.df, relative.influence>=1)#take only interesting variables
-
-x.df$variable = factor(x.df$variable, levels = x.df$variable[order(x.df$relative.influence)])
-save(x.df, file = "x.df.Rdata")
-ggplot(data = x.df, aes(x = variable, y =relative.influence))+
-  ylab("relative influence (%)")+
-  xlab("variable")+
-  geom_bar(stat="identity")+
-  coord_flip()
-# 
-ggsave("Figure.relative.influence.jpg")
-
-
-```
 ###prepare data with vtreat
 ```{r}
-dat = dat_backup
+load("dat.Rdata")
+rm = "Matches"
+keep = setdiff(names(dat), rm)
+dat = dat[,keep]
+
+
 dat$random = factor(sample(c(0,1), size = dim(dat)[1], replace = TRUE))
 transform_design = vtreat::mkCrossFrameMExperiment(
     d = dat,                                         # data to learn transform from
@@ -763,98 +239,567 @@ table(truth = d_prepared$transmission.mode.to.humans.simplified.numeric, predict
 
 
 
-###prepare data with vtreat -- binomial (excluding direct)
-```{r}
-dat = dat_backup
-dat = subset(dat, transmission.mode.to.humans.simplified.numeric !=0)
-dat$transmission.mode.to.humans.simplified.numeric= as.numeric(as.character(dat$transmission.mode.to.humans.simplified.numeric))-1
-dat$random = factor(sample(c(0,1), size = dim(dat)[1], replace = TRUE))
-transform_design = vtreat::mkCrossFrameMExperiment(
-    d = dat,                                         # data to learn transform from
-    vars = setdiff(colnames(dat), c('transmission.mode.to.humans.simplified.numeric')),     # columns to transform
-    y_name = 'transmission.mode.to.humans.simplified.numeric'# outcome variable
-)
-transform <- transform_design$treat_m
-d_prepared <- transform_design$cross_frame
-score_frame <- transform_design$score_frame
-score_frame$recommended <- score_frame$varMoves & (score_frame$sig < 1/nrow(score_frame))
 
-knitr::kable(score_frame)
+###randomForest with all classes
+```{r}
+load("dat.Rdata")
+#remove rows which have empty values
+row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
+predictors_no_NA <- dat[!row.has.na, ]
+dat = predictors_no_NA
+dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
+
+
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+disease_col = which(names(dat) == "Matches")
+names <-  colnames(dat[,-c(label_col, disease_col)])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+
+#get train and test
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+model.rf = randomForest(model, data=Train, ntree=5000, mtry=15, importance=TRUE)
+print(model.rf)
+#get predicted
+Test$pred = predict(model.rf, Test, type="response")
+
+table(Test$transmission.mode.to.humans.simplified.numeric, 
+      Test$pred)
+
+varImpPlot(model.rf,type=2, n.var = 20)
+
+inds_test_0_wrong = which(Test$transmission.mode.to.humans.simplified.numeric == 0 &
+                            (Test$pred == 1 | Test$pred == 2))
+diseases_0_wrong = Test$Matches[inds_test_0_wrong]
+
 ```
 
-##examining variables -- binomial
+###randomForest with all  classes, classwt proportional
 ```{r}
-good_new_variables = unique(score_frame[score_frame[['recommended']], 'varName', drop = TRUE])
-good_new_variables
+load("dat.Rdata")
+#remove rows which have empty values
+row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
+predictors_no_NA <- dat[!row.has.na, ]
+dat = predictors_no_NA
+dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
+
+
+tab = table(dat$transmission.mode.to.humans.simplified.numeric)
+tab_frac = tab/dim(dat)[1]
+tab_frac= c(tab_frac)
+
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+disease_col = which(names(dat) == "Matches")
+names <-  colnames(dat[,-c(label_col, disease_col)])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+
+#get train and test
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+model.rf = randomForest(model, data=Train, ntree=5000, mtry=15,
+                        classwt = tab_frac,
+                        importance=TRUE)
+print(model.rf)
+#get predicted
+Test$pred = predict(model.rf, Test, type="response")
+
+table(Test$transmission.mode.to.humans.simplified.numeric, 
+      Test$pred)
+
+varImpPlot(model.rf,type=2, n.var = 20)
+
+inds_test_0_wrong = which(Test$transmission.mode.to.humans.simplified.numeric == 0 &
+                            (Test$pred == 1 | Test$pred == 2))
+diseases_0_wrong = Test$Matches[inds_test_0_wrong]
+diseases_0_wrong
+```
+
+###randomForest with all  classes, classwt inversely proportional
+```{r}
+load("dat.Rdata")
+#remove rows which have empty values
+row.has.na <- apply(dat, 1, function(x){any(is.na(x))})
+predictors_no_NA <- dat[!row.has.na, ]
+dat = predictors_no_NA
+dat$transmission.mode.to.humans.simplified.numeric=factor(dat$transmission.mode.to.humans.simplified.numeric)
+
+
+tab = table(dat$transmission.mode.to.humans.simplified.numeric)
+tab_frac = tab/dim(dat)[1]
+tab_frac= c(tab_frac)
+
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+disease_col = which(names(dat) == "Matches")
+names <-  colnames(dat[,-c(label_col, disease_col)])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+
+#get train and test
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+model.rf = randomForest(model, data=Train, ntree=5000, mtry=15,
+                        classwt = c(tab_frac[3], tab_frac[2], tab_frac[1]),
+                        importance=TRUE)
+print(model.rf)
+#get predicted
+Test$pred = predict(model.rf, Test, type="response")
+
+table(Test$transmission.mode.to.humans.simplified.numeric, 
+      Test$pred)
+
+varImpPlot(model.rf,type=2, n.var = 20)
+
+#direct: 0
+#environmental: 1
+#vector: 2
+
+inds_test_0_wrong = which(Test$transmission.mode.to.humans.simplified.numeric == 0 &
+                            (Test$pred == 1 | Test$pred == 2))
+diseases_0_wrong = Test$Matches[inds_test_0_wrong]
+diseases_0_wrong
+
 
 ```
 
-###Using the Prepared Data in a Model -- binomial
-```{r}
-d_prepared %.>%
-  head(.) %.>%
-  knitr::kable(.)
-model_vars <- score_frame$varName[score_frame$recommended]
+##XGB
+Here is where we:
 
-model <- glmnet(x = as.matrix(d_prepared[, model_vars, drop=FALSE]), 
-               y = d_prepared[['transmission.mode.to.humans.simplified.numeric']],
-               family = 'binomial')
+The XGBoost algorithm requires that the class labels (Site names) start at 0 and increase sequentially to the maximum number of classes. This is a bit of an inconvenience as you need to keep track of what Site name goes with which label. Also, you need to be very careful when you add or remove a 1 to go from the zero based labels to the 1 based labels.
+
+####train and test split-- rodents
+##need to remove disease (field "Matches")
+```{r}
+load("dat.Rdata")
+rm = "Matches"
+keep = setdiff(names(dat), rm)
+dat = dat[,keep]
+# Make split index
+train_index <- sample(1:nrow(dat), nrow(dat)*0.6)
+# Full data set
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+data_variables <- as.matrix(dat[,-label_col])
+data_label <- dat[,"transmission.mode.to.humans.simplified.numeric"]
+data_matrix <- xgb.DMatrix(data = as.matrix(dat), label = data_label)
+# split train data and make xgb.DMatrix
+train_data   <- data_variables[train_index,]
+train_label  <- data_label[train_index]
+train_matrix <- xgb.DMatrix(data = train_data, label = train_label)
+# split test data and make xgb.DMatrix
+test_data  <- data_variables[-train_index,]
+test_label <- data_label[-train_index]
+test_matrix <- xgb.DMatrix(data = test_data, label = test_label)
 ```
 
 
-# convenience functions for predicting and adding predictions to original data frame
+####K-folds Cross-validation to Estimate Error-- rodents
+set the objective to multi:softprob and the eval_metric to mlogloss. These two parameters tell the XGBoost algorithm that we want to to probabilistic classification and use a multiclass logloss as our evaluation metric. Use of the multi:softprob objective also requires that we tell is the number of classes we have with num_class
 ```{r}
-# convenience functions for predicting and adding predictions to original data frame
-add_predictions <- function(d_prepared, model_vars, model) {
-  preds <- predict(
-    model, 
-    newx = as.matrix(d_prepared[, model_vars, drop=FALSE]),
-    s = min(model$lambda),  # in practice we would cross-validated for a good s
-    type = 'response')
-  preds <- as.data.frame(preds[,1])
-  preds$prob_on_predicted_class <- apply(preds, 1, max)
-  preds$predict <- NA_character_
-  for(col in colnames(preds)) {
-    alter = is.na(preds$predict) & preds[[col]] >= preds$prob_on_predicted_class
-    preds$predict[alter] <- col
-  }
-  d_prepared <- cbind(d_prepared, preds)
-  d_prepared
-}
+numberOfClasses <- length(unique(dat$transmission.mode.to.humans.simplified.numeric))
+xgb_params <- list("objective" = "multi:softprob",
+                   "eval_metric" = "mlogloss",
+                   "num_class" = numberOfClasses)
+nround    <- 50 # number of XGBoost rounds
+cv.nfold  <- 5
 
-add_value_by_column <- function(d_prepared, name_column, new_column) {
-  vals = unique(d_prepared[[name_column]])
-  d_prepared[[new_column]] <- NA_real_
-  for(col in vals) {
-    match <- d_prepared[[name_column]] == col
-    d_prepared[[new_column]][match] <- d_prepared[match, col, drop=TRUE]
-  }
-  d_prepared
-}
+# Fit cv.nfold * cv.nround XGB models and save OOF predictions
+cv_model <- xgb.cv(params = xgb_params,
+                   data = train_matrix, 
+                   nrounds = nround,
+                   nfold = cv.nfold,
+                   verbose = FALSE,
+                   prediction = TRUE)
 ```
 
 
-##predict -- binomial
+####Assess Out-of-Fold Prediction Error-- rodents
 ```{r}
-# now predict
-d_prepared <- add_predictions(d_prepared, model_vars, model)
+OOF_prediction <- data.frame(cv_model$pred) %>%
+  mutate(max_prob = max.col(., ties.method = "last"),
+         label = train_label + 1)
+head(OOF_prediction)
+```
+#### confusion matrix-- rodents
+```{r}
+# confusion matrix
+confusionMatrix(factor(OOF_prediction$max_prob),
+                factor(OOF_prediction$label),
+                mode = "everything")
+```
+###Train Full Model and Assess Test Set Error-- rodents
+```{r}
+bst_model <- xgb.train(params = xgb_params,
+                       data = train_matrix,
+                       nrounds = nround)
 
-name_column ='transmission.mode.to.humans.simplified.numeric'
-vals = unique(d_prepared[[name_column]])
-new_column = 'prob_on_correct_class'
-d_prepared[[new_column]] <- NA_real_
-##this code gets an error. 
-# for(col in vals) {
-#     match <- d_prepared[[name_column]] == col
-#     d_prepared[[new_column]][match] <- d_prepared[match, col, drop=TRUE]
-# }
+# Predict hold-out test set
+test_pred <- predict(bst_model, newdata = test_matrix)
+test_prediction <- matrix(test_pred, nrow = numberOfClasses,
+                          ncol=length(test_pred)/numberOfClasses) %>%
+  t() %>%
+  data.frame() %>%
+  mutate(label = test_label + 1,
+         max_prob = max.col(., "last"))
+# confusion matrix of test set
+confusionMatrix(factor(test_prediction$max_prob),
+                factor(test_prediction$label),
+                mode = "everything")
+```
+###Variable Importance-- rodents
+```{r var_imp}
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+names <-  colnames(dat[,-label_col])
+# compute feature importance matrix
+importance_matrix = xgb.importance(feature_names = names, model = bst_model)
+head(importance_matrix)
 
+# plot
+gp = xgb.ggplot.importance(importance_matrix, top_n = 20)
+print(gp) 
+```
+
+
+
+###GBM with two most common classes
+```{r gbm}
+load("dat.Rdata")
+dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
+dim(dat)
+
+# inds_inf = which(dat$sm_mean == Inf)
+# dat = do.call(data.frame,lapply(dat, function(x) replace(x, is.infinite(x),NA)))
+
+# do.call(data.frame,lapply(dat, function(x) replace(x, NaN,NA)))
+
+
+inds1 = which(is.infinite(dat$sm_mean))
+# dat$sm_mean[inds]=NA
 # 
-# to_print <- c('transmission.mode.to.humans.simplified.numeric', 'predict', 'large','liminal','small', 'prob_on_predicted_class', 'prob_on_correct_class')
-# d_prepared[, to_print, drop = FALSE] %.>%
-#   head(.) %.>%
-#   knitr::kable(.)
+inds2 = which(is.na(dat$sm_Dec))
+inds1 == inds2#there are some rows that are NA all across
 
-# table(truth = d_prepared$transmission.mode.to.humans.simplified.numeric, prediction = d_prepared$predict)
+dat = subset(dat, !is.infinite(dat$sm_mean))#remove rows with infinite values (also removes rows with NA values)
+ind1 = which(dat$transmission.mode.to.humans.simplified.numeric==1)
+dat$transmission.mode.to.humans.simplified.numeric[ind1]=0
+
+ind2 = which(dat$transmission.mode.to.humans.simplified.numeric==2)
+dat$transmission.mode.to.humans.simplified.numeric[ind2]=1
+
+# get the feature real names
+label_col = which(names(dat)== "transmission.mode.to.humans.simplified.numeric")
+
+disease_col = which(names(dat) == "Matches")
+names <-  colnames(dat[,-c(label_col, disease_col)])
+y_col = label_col
+
+
+model<-as.formula(paste(colnames(dat)[y_col], "~",
+                        paste(names,collapse = "+"),
+                        sep = ""))
+model
+
+#get train and test
+dat$transmission.mode.to.humans.simplified.numeric = as.numeric(as.character(dat$transmission.mode.to.humans.simplified.numeric))
+# set.seed(1234)#always use same split
+DP =createDataPartition(y = dat$transmission.mode.to.humans.simplified.numeric, 
+                        p = 0.8,
+                        list = FALSE)
+Train = dat[DP,]
+Test = dat[-DP,]
+
+ptm<-proc.time()
+
+n.trees = 15000
+shrinkage = 0.001#final version should be 0.001
+cv.folds = 10#final version should be 10
+gbmtest<- gbm(model,
+              data=Train,
+              distribution="bernoulli",
+              n.trees=n.trees,
+              shrinkage=shrinkage,
+              interaction.depth=3,
+              bag.fraction=0.50,
+              train.fraction=1,
+              n.minobsinnode=5,
+              cv.folds=cv.folds,
+              keep.data=TRUE,
+              verbose=TRUE,
+              n.cores=NULL)
+
+save(gbmtest, file = "gbmtest.Rdata")
+#check performance using 5-fold cross-validation
+best.iter <- gbm.perf(gbmtest,method="cv",plot.it=FALSE) #this gives you the optimal number of trees based on cv performance, other methods will over or under predict
+print(best.iter)
+
+gbm_error = data.frame(train.error = gbmtest$train.error,
+                       trees = seq(1,n.trees))
+plot <- ggplot(gbm_error, aes(x = trees, y = train.error))+
+  geom_line()
+plot
+ggsave(filename = "deviance_enviro_vector.jpg",
+       plot = plot)
+#Stop the clock
+(proc.time()-ptm)/60
+
+load("gbmtest.Rdata")
+best.iter <- gbm.perf(gbmtest,method="cv",plot.it=FALSE) #this gives you the optimal number of trees based on cv performance, other methods 
+# output predictions on the TRAINING SET
+output<-predict(gbmtest, 
+                newdata=Train, 
+                n.trees=best.iter, 
+                type="response") 
+
+output<-cbind(output,Train$transmission.mode.to.humans.simplified.numeric)
+colnames(output)<-c("output","data")
+rownames(output)<-rownames(Train)
+output<-output[order(-output[,1]),]
+
+# # AUC for Bernoulli distributed responses
+par(mar = c(1,1,1,1))
+auc=colAUC(output[,1],output[,2],
+           plotROC = TRUE)
+
+print(auc)
+pred<-prediction(output[,1],output[,2])
+perf<-performance(pred,"tpr","fpr")
+
+par(mar = c(1,1,1,1))
+plot(perf,colorize=TRUE,main="ROC full model")
+abline(a=0, b= 1)
+
+# output predictions on the Test SET
+output<-predict(gbmtest,
+                newdata=Test,
+                n.trees=best.iter,
+                type="response")
+Test$pred = round(output)
+
+output<-cbind(output,Test$transmission.mode.to.humans.simplified.numeric)
+colnames(output)<-c("output","data")
+rownames(output)<-rownames(Test)
+output<-output[order(-output[,1]),]
+
+# # AUC for Bernoulli distributed responses
+par(mar = c(1,1,1,1))
+auc=colAUC(output[,1],output[,2],
+           plotROC = TRUE)
+
+print(auc)
+pred<-prediction(output[,1],output[,2])
+perf<-performance(pred,"tpr","fpr")
+
+par(mar = c(1,1,1,1))
+plot(perf,colorize=TRUE,main="ROC full model test data")
+# abline(a=0, b= 1)
 
 ```
+
+#### confusion matrix-- rodents -- GBM
+```{r}
+# confusion matrix -- Test set
+confusionMatrix(data = factor(Test$pred),
+                factor(Test$transmission.mode.to.humans.simplified.numeric),
+                mode = "everything")
+
+inds_observed_1_predicted_0 = which(Test$transmission.mode.to.humans.simplified.numeric == 1 & Test$pred ==0)
+
+Test$Matches[inds_observed_1_predicted_0]
+
+inds_observed_0_predicted_1 = which(Test$transmission.mode.to.humans.simplified.numeric == 0 & Test$pred ==1)
+Test$Matches[inds_observed_0_predicted_1]
+
+# output predictions on the Train SET
+output<-predict(gbmtest,
+                newdata=Train,
+                n.trees=best.iter,
+                type="response")
+Train$pred = round(output)
+# confusion matrix
+confusionMatrix(data = factor(Train$pred),
+                factor(Train$transmission.mode.to.humans.simplified.numeric),
+                mode = "everything")
+
+
+```
+
+
+###permute labels and find AUC -- bootstrap
+```{r boot_gbm_auc}
+load("dat.Rdata")
+dat = subset(dat, transmission.mode.to.humans.simplified.numeric!=0)
+dim(dat)
+
+dat = subset(dat, !is.infinite(dat$sm_mean))#remove rows with infinite values (also removes rows with NA 
+# inds_inf = which(dat$sm_mean == Inf)
+# do.call(data.frame,lapply(dat, function(x) replace(x, is.infinite(x),NA)))
+# 
+# do.call(data.frame,lapply(dat, function(x) replace(x, NaN,NA)))
+# 
+# inds = which(is.infinite(dat$sm_mean))
+# dat = subset(dat, !is.infinite(dat$sm_mean))#remove rows with infinite values
+ind1 = which(dat$transmission.mode.to.humans.simplified.numeric==1)
+dat$transmission.mode.to.humans.simplified.numeric[ind1]=0
+
+ind2 = which(dat$transmission.mode.to.humans.simplified.numeric==2)
+dat$transmission.mode.to.humans.simplified.numeric[ind2]=1
+
+#Start the clock
+ptm<-proc.time()
+
+permutedAUC<-c()
+
+word = "binomail"
+best.iter.list = c()
+
+i=1
+while (i <= 50) {
+  # for permutation loop
+  
+  ## random permutation of Label
+  randomLabel<-sample(dat$transmission.mode.to.humans.simplified.numeric)
+
+  pan2<-cbind(randomLabel,dat)
+  #remove previous label
+  rm = "X.application_interaction.risk_assessment.pathogenicity_human."
+  keep = setdiff(names(pan2),rm)
+  pan2 = pan2[,keep]
+  
+  pan2[,1]<-sapply(pan2[,1],as.character)
+  
+  ## create training and test sets
+  intrain2<-createDataPartition(y=pan2$randomLabel,
+                                p=0.8,
+                                list=FALSE)
+  
+  test2<-pan2[-intrain2,]
+  training2<-pan2[intrain2,]
+  
+  check<-1-is.na(training2)*1
+  checksum<-apply(check,2,sum)
+  if(length(which(checksum>=2))==dim(training2)[2]){#this makes sure we don't get any columns with all zeros. Should be == to the number of columns
+ 
+  
+    ## random permutation of Labels ~ traits
+    y_col = 1
+    x_col = c(2:dim(pan2)[2])
+    
+    model<-as.formula(paste(colnames(pan2)[y_col], "~",
+                            paste(colnames(pan2)[x_col],collapse = "+"),
+                            sep = ""))
+    
+    
+    gbm2<- gbm(model,
+                   data=training2, 
+                   distribution="bernoulli",
+                   n.trees=15000,
+                   shrinkage=0.001,
+                   interaction.depth=3,
+                   bag.fraction=0.50,
+                   train.fraction=1,
+                   n.minobsinnode=3,
+                   cv.folds=10,
+                   keep.data=TRUE)
+    # verbose=TRUE)
+    
+    #check performance using 5-fold cross-validation
+    best.iter2 <- gbm.perf(gbm2,method="cv",plot.it=FALSE) #OOB method under predicts
+    best.iter.list=c(best.iter.list, best.iter2)
+
+        #   batsum2<-summary.gbm(gbm2,n.trees=best.iter,method=relative.influence,plotit=FALSE)
+    
+    ## LABEL
+    ## predictions on the TRAINING SET
+    output2<-predict(gbm2, newdata=training2, n.trees=best.iter2, type="response") 
+    output2<-cbind(output2,as.numeric(training2$randomLabel))
+    #   colnames(output2)<-c("output","label")
+    #   output2<-output2[order(-as.numeric(output2[,1])),]
+    
+    # # training AUC for Bernoulli distributed responses
+    auc2=colAUC(output2[,1],output2[,2])
+    
+    # Predictions on the TEST set
+    output.test2<-predict(gbm2, newdata=test2, n.trees=best.iter2, type="response") 
+    output.test2<-cbind(output.test2,as.numeric(test2$randomLabel))
+    # colnames(output.test2)<-c("output","label")
+    # output.test2<-output.test2[order(-output.test2[,1]),]
+    # plot(output.test)
+    
+    ## test AUC for Bernoulli distributed responses
+    auctest2=colAUC(output.test2[,1],output.test2[,2])
+    
+    permutedAUC[i]<-auctest2
+    print(auctest2)
+    i=i+1
+    print(i)#check where we are in bootstrap
+  } else i=i
+}
+sum(is.na(permutedAUC)*1) #how many NAs
+permutedAUC2<-na.omit(permutedAUC)
+mean(permutedAUC2)
+sd(permutedAUC2)
+#Stop the clock
+(proc.time()-ptm)/60
+write.csv(best.iter.list, file = paste0("best.iter.list.","AUC.", word, ".csv"))
+```
+
+
+###plot relative influence
+```{r gbm_rel_inf}
+
+load("gbmtest.Rdata")
+x = summary(gbmtest)
+# 
+x.df= data.frame(variable = x$var,
+                 relative.influence = x$rel.inf)
+
+x.df.0 = subset(x.df, relative.influence==0)
+dim(x.df.0)[1]
+x.df = subset(x.df, relative.influence>=1)#take only interesting variables
+
+x.df$variable = factor(x.df$variable, levels = x.df$variable[order(x.df$relative.influence)])
+save(x.df, file = "x.df.Rdata")
+ggplot(data = x.df, aes(x = variable, y =relative.influence))+
+  ylab("relative influence (%)")+
+  xlab("variable")+
+  geom_bar(stat="identity")+
+  coord_flip()
+# 
+ggsave("Figure.relative.influence.jpg")
+
+
+```
+
+
+
